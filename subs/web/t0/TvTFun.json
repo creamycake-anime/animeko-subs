@@ -24,6 +24,7 @@
         "selectEpisodeLinksFromList": "a",
         "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
       },
+      "onlySupportsPlayers": ["vlc", "exoplayer", "mpv"],
       "matchVideo": {
         "enableNestedUrl": true,
         "matchNestedUrl": "$^",
