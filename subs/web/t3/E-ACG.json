@@ -2,23 +2,23 @@
   "factoryId": "web-selector",
   "version": 2,
   "arguments": {
-    "name": "风铃动漫",
-    "description": "直连，来自风铃动漫，导航：https://www.aafun.cc/",
-    "iconUrl": "https://www.aafun.cc/favicon.ico",
+    "name": "E-ACG",
+    "description": "直连，来自E-ACG，导航：https://www.eacg1.com/",
+    "iconUrl": "https://i.loli.net/2019/12/09/17hvXK2LemTtgfs.png",
     "searchConfig": {
-      "searchUrl": "https://www.aafun.cc/feng-s.html?wd={keyword}&submit=",
+      "searchUrl": "https://www.eacg1.com/vodsearch/-------------.html?wd={keyword}",
       "searchUseOnlyFirstWord": true,
       "subjectFormatId": "a",
       "selectorSubjectFormatA": {
-        "selectLists": ".hl-item-thumb",
+        "selectLists": "body > div.fed-main-info.fed-min-width > div > div > dl > dd.fed-deta-content > h1 a",
         "preferShorterName": true
       },
       "channelFormatId": "index-grouped",
       "selectorChannelFormatFlattened": {
-        "selectChannelNames": ".hl-tabs-btn",
-        "matchChannelName": "^(?!I号线$)(?<ch>.+?)(\\d+)?$",
-        "selectEpisodeLists": ".hl-plays-list",
-        "selectEpisodesFromList": "a",
+        "selectChannelNames": ".fed-drop-boxs.fed-drop-tops.fed-matp-v a",
+        "matchChannelName": "",
+        "selectEpisodeLists": ".fed-play-item.fed-drop-item",
+        "selectEpisodesFromList": "a.fed-btns-info",
         "selectEpisodeLinksFromList": "",
         "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
       },
@@ -39,6 +39,6 @@
         }
       }
     },
-    "tier": 1
+    "tier": 3
   }
 }

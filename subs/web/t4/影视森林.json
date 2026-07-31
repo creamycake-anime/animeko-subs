@@ -2,23 +2,24 @@
   "factoryId": "web-selector",
   "version": 2,
   "arguments": {
-    "name": "E-ACG",
+    "name": "影视森林",
     "description": "",
-    "iconUrl": "https://i.loli.net/2019/12/09/17hvXK2LemTtgfs.png",
+    "iconUrl": "http://www.hc34567.com/static/images/logo.png",
     "searchConfig": {
-      "searchUrl": "https://eacg.net/vodsearch/-------------.html?wd={keyword}",
-      "searchUseOnlyFirstWord": true,
+      "searchUrl": "http://www.hc34567.com/hcvodsearch/{keyword}----------1---.html",
+      "searchUseOnlyFirstWord": false,
       "searchRemoveSpecial": true,
+      "searchUseSubjectNamesCount": 1,
       "rawBaseUrl": "",
-      "requestInterval": 5000,
+      "requestInterval": 3000,
       "subjectFormatId": "a",
       "selectorSubjectFormatA": {
-        "selectLists": "body > div.fed-main-info.fed-min-width > div > div > dl > dd.fed-deta-content > h1 a",
+        "selectLists": ".title > a",
         "preferShorterName": true
       },
       "selectorSubjectFormatIndexed": {
-        "selectNames": ".fed-part-layout .fed-deta-info h1.fed-part-eone",
-        "selectLinks": ".fed-part-layout > .fed-deta-info h1.a",
+        "selectNames": ".search-box .thumb-content > .thumb-txt",
+        "selectLinks": ".search-box .thumb-menu > a",
         "preferShorterName": true
       },
       "selectorSubjectFormatJsonPathIndexed": {
@@ -28,19 +29,21 @@
       },
       "channelFormatId": "no-channel",
       "selectorChannelFormatFlattened": {
-        "selectChannelNames": ".fed-play-btns a",
-        "matchChannelName": "^(?<ch>.+?)(\\d+)?",
-        "selectEpisodeLists": ".fed-play-item .fed-part-rows",
+        "selectChannelNames": ".anthology-tab > .swiper-wrapper a",
+        "matchChannelName": "^(?<ch>.+?)(\\d+)?$",
+        "selectEpisodeLists": ".anthology-list-box",
         "selectEpisodesFromList": "a",
         "selectEpisodeLinksFromList": "",
         "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
       },
       "selectorChannelFormatNoChannel": {
-        "selectEpisodes": ".fed-drop-boxs .fed-part-rows .fed-col-lg1 a",
+        "selectEpisodes": ".myui-content__list a",
         "selectEpisodeLinks": "",
         "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
       },
       "defaultResolution": "1080P",
+      "defaultSubtitleLanguage": "CHS",
+      "onlySupportsPlayers": [],
       "filterByEpisodeSort": true,
       "filterBySubjectName": true,
       "selectMedia": {
@@ -50,7 +53,7 @@
       "matchVideo": {
         "enableNestedUrl": true,
         "matchNestedUrl": "^.+(m3u8|vip|xigua\\.php).+\\?",
-        "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http(s)?:\\/\\/)(?!.*(?:vip\\.dytt-hot\\.com|vip\\.ffzy-play3\\.com|vip\\.dytt-cine\\.com)).+((\\.mp4)|(\\.mkv)|(m3u8)).*(\\?.+)?)|(akamaized)|(bilivideo.com)",
+        "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http(s)?:\\/\\/).+((\\.mp4)|(\\.mkv)|(m3u8)).*(\\?.+)?)|(akamaized)|(bilivideo.com)",
         "cookies": "quality=1080",
         "addHeadersToVideo": {
           "referer": "",
@@ -58,6 +61,6 @@
         }
       }
     },
-    "tier": 2
+    "tier": 4
   }
 }

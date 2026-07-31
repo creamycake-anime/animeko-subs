@@ -1,0 +1,39 @@
+{
+  "factoryId": "web-selector",
+  "version": 2,
+  "arguments": {
+    "name": "TvTFun",
+    "description": "直连，来自TvTFun，导航：https://www.tvtfun.net/",
+    "iconUrl": "https://www.tvtfun.net/logo.svg",
+    "searchConfig": {
+      "searchUrl": "https://www.tvtfun.net/api/videos/search?q={keyword}&pageSize=5",
+      "searchUseOnlyFirstWord": true,
+      "rawBaseUrl": "https://www.tvtfun.net/video/",
+      "subjectFormatId": "json-path-indexed",
+      "selectorSubjectFormatJsonPathIndexed": {
+        "selectLinks": "$.data.videos[*].slug",
+        "selectNames": "$.data.videos[*].name",
+        "preferShorterName": true
+      },
+      "channelFormatId": "index-grouped",
+      "selectorChannelFormatFlattened": {
+        "selectChannelNames": "button[data-slot=\"button\"].inline-flex",
+        "matchChannelName": "^(?<ch>线路.+?)(\\d+)?$",
+        "selectEpisodeLists": "div.mx-auto",
+        "selectEpisodesFromList": "a > button",
+        "selectEpisodeLinksFromList": "a",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "matchVideo": {
+        "enableNestedUrl": true,
+        "matchNestedUrl": "$^",
+        "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http).+\\.(mp4|m3u8|flv|mkv))|(url=(?<v>http(s)?:\\/\\/.+\\.(mp4|m3u8|flv|mkv)))|(^http(s)?:\\/\\/(?!.*http).+(sign\\.bytetos|sign\\.byteimg|mcloud\\.139|cloudflarestorage|tos-cn)\\.com(?!.*\\.ts).+(-expires|-signature))|((bilivideo|akamaized|szbdyd)\\.com(?!.*\\.ts))|(\\/video\\/tos\\/)|(\\/video\\/.*mime_type=video)",
+        "cookies": "quality=1080",
+        "addHeadersToVideo": {
+          "referer": ""
+        }
+      }
+    },
+    "tier": 0
+  }
+}

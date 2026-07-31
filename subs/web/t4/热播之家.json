@@ -2,17 +2,19 @@
   "factoryId": "web-selector",
   "version": 2,
   "arguments": {
-    "name": "趣动漫",
-    "description": "",
-    "iconUrl": "https://www.qdm8.com/favicon.ico",
+    "name": "热播之家",
+    "description": "直连",
+    "iconUrl": "https://www.rebozj.pro/template/jianhei/statics/img/favicon.png",
     "searchConfig": {
-      "searchUrl": "https://www.qdm8.com/search/-------------.html?wd={keyword}&submit=",
+      "searchUrl": "https://www.rebozj.pro/search/-------------.html?wd={keyword}&submit=",
       "searchUseOnlyFirstWord": true,
+      "searchRemoveSpecial": true,
+      "searchUseSubjectNamesCount": 1,
       "rawBaseUrl": "",
       "requestInterval": 3000,
       "subjectFormatId": "a",
       "selectorSubjectFormatA": {
-        "selectLists": "#searchList > li > div.detail > h4 > a",
+        "selectLists": ".stui-vodlist__box h4 > a",
         "preferShorterName": true
       },
       "selectorSubjectFormatIndexed": {
@@ -27,18 +29,21 @@
       },
       "channelFormatId": "index-grouped",
       "selectorChannelFormatFlattened": {
-        "selectChannelNames": "body > div.container > div > div.col-md-wide-7.col-xs-1.padding-0 > div:nth-child(4) > div > div.myui-panel_hd > div > ul > li > a",
-        "matchChannelName": "^()?(?<ch>.+?)(\\d+)?$",
-        "selectEpisodeLists": "body > div.container > div > div.col-md-wide-7.col-xs-1.padding-0 > div:nth-child(4) > div > div.tab-content.myui-panel_bd > div",
+        "selectChannelNames": ".nav-tabs a",
+        "matchChannelName": "(.*蓝光.*)",
+        "selectEpisodeLists": ".stui-content__playlist",
         "selectEpisodesFromList": "a",
         "selectEpisodeLinksFromList": "",
         "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
       },
       "selectorChannelFormatNoChannel": {
-        "selectEpisodes": "#playlist1 > ul > li > a",
+        "selectEpisodes": "#glist-1 > div.module-blocklist.scroll-box.scroll-box-y > div > a",
         "selectEpisodeLinks": "",
         "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
       },
+      "defaultResolution": "1080P",
+      "defaultSubtitleLanguage": "CHS",
+      "onlySupportsPlayers": [],
       "filterByEpisodeSort": true,
       "filterBySubjectName": true,
       "selectMedia": {
@@ -47,15 +52,14 @@
       },
       "matchVideo": {
         "enableNestedUrl": true,
-        "matchNestedUrl": "^.+(m3u8|vip|xigua\\.php).+\\?",
-        "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http(s)?:\\/\\/).+((\\.mp4)|(m3u8)).*(\\?.+)?)|(akamaized)|(bilivideo.com)",
+        "matchNestedUrl": "$^",
+        "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http).+\\.(mp4|m3u8|flv|mkv))|(url=(?<v>http(s)?:\\/\\/.+\\.(mp4|m3u8|flv|mkv)))|(^http(s)?:\\/\\/(?!.*http).+(sign\\.bytetos|sign\\.byteimg|mcloud\\.139|cloudflarestorage|tos-cn)\\.com(?!.*\\.ts).+(-expires|-signature))|((bilivideo|akamaized|szbdyd)\\.com(?!.*\\.ts))|(\\/video\\/tos\\/)|(\\/video\\/.*mime_type=video)",
         "cookies": "quality=1080",
         "addHeadersToVideo": {
           "referer": "",
           "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
         }
-      },
-      "defaultResolution": "1080P"
+      }
     },
     "tier": 4
   }

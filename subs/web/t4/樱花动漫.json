@@ -3,39 +3,56 @@
   "version": 2,
   "arguments": {
     "name": "樱花动漫",
-    "description": "直连，来自樱花动漫，导航：https://www.yhdm6go.top/",
-    "iconUrl": "https://yhdm6go.top/favicon.ico",
+    "description": "",
+    "iconUrl": "https://www.yinghua2.com/statics/img/favicon.ico",
     "searchConfig": {
-      "searchUrl": "https://yhdm6go.top/vsh/-------------/?wd={keyword}&submit=",
+      "searchUrl": "https://www.yinghua2.com/index.php/vod/search.html?wd={keyword}",
       "searchUseOnlyFirstWord": true,
+      "searchRemoveSpecial": true,
+      "rawBaseUrl": "",
       "subjectFormatId": "a",
       "selectorSubjectFormatA": {
-        "selectLists": "h4.vodlist_title > a",
+        "selectLists": ".title > a",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatIndexed": {
+        "selectNames": ".search-box .thumb-content > .thumb-txt",
+        "selectLinks": ".search-box .thumb-menu > a",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatJsonPathIndexed": {
+        "selectLinks": "$[*]['url', 'link']",
+        "selectNames": "$[*]['title','name']",
         "preferShorterName": true
       },
       "channelFormatId": "index-grouped",
       "selectorChannelFormatFlattened": {
-        "selectChannelNames": "div.play_source_tab a[href=\"javascript:void(0);\"]",
+        "selectChannelNames": ".playlist  .stui-pannel__head > h3.title",
         "matchChannelName": "",
-        "selectEpisodeLists": "div.play_list_box.hide",
-        "selectEpisodesFromList": "ul.content_playlist.list_scroll > li > a",
+        "selectEpisodeLists": ".stui-content__playlist",
+        "selectEpisodesFromList": "a",
         "selectEpisodeLinksFromList": "",
         "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
       },
-      "defaultResolution": "1080P",
-      "defaultSubtitleLanguage": "CHS",
-      "onlySupportsPlayers": [],
+      "selectorChannelFormatNoChannel": {
+        "selectEpisodes": "#glist-1 > div.module-blocklist.scroll-box.scroll-box-y > div > a",
+        "selectEpisodeLinks": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "filterByEpisodeSort": true,
+      "filterBySubjectName": true,
       "selectMedia": {
         "distinguishSubjectName": true,
         "distinguishChannelName": true
       },
       "matchVideo": {
         "enableNestedUrl": true,
-        "matchNestedUrl": "$^",
-        "matchVideoUrl": "(^https?:\\/\\/(?:[^\\/]+\\.)?cdn\\.ryplay12\\.com.+\\.(mp4|m3u8|flv|mkv)(\\?.+)?)|(url=(?<v>https?:\\/\\/(?:[^\\/]+\\.)?cdn\\.ryplay12\\.com.+\\.(mp4|m3u8|flv|mkv)(\\?.+)?))|(^https?://v\\.baofeng11\\.com/.+\\.(mp4|m3u8|flv|mkv)(\\?.+)?)",
+        "matchNestedUrl": "^.+(m3u8|vip|xigua\\.php).+\\?",
+        "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http(s)?:\\/\\/).+((\\.mp4)|(\\.mkv)|(m3u8)).*(\\?.+)?)|(akamaized)|(bilivideo.com)|(.+\\?url=(?<v>.+))",
         "cookies": "quality=1080",
         "addHeadersToVideo": {
-          "referer": ""
+          "referer": "",
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
         }
       }
     },

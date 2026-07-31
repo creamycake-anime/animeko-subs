@@ -1,18 +1,18 @@
 {
   "factoryId": "web-selector",
-  "version": 1,
+  "version": 2,
   "arguments": {
-    "name": "MX动漫",
+    "name": "wedm",
     "description": "",
-    "iconUrl": "https://www.mxdm.xyz/favicon.ico",
+    "iconUrl": "https://www.vdm5.com/favicon.ico",
     "searchConfig": {
-      "searchUrl": "https://www.mxdm.xyz/search/-------------.html?wd={keyword}",
-      "requestInterval": 5000,
+      "searchUrl": "https://www.vdm5.com/search_-------------.html?wd={keyword}",
       "searchUseOnlyFirstWord": true,
-      "preferShortest": true,
+      "searchRemoveSpecial": true,
+      "rawBaseUrl": "",
       "subjectFormatId": "a",
       "selectorSubjectFormatA": {
-        "selectLists": "div.video-info-header > a",
+        "selectLists": "div.detail > h3 > a",
         "preferShorterName": true
       },
       "selectorSubjectFormatIndexed": {
@@ -20,11 +20,16 @@
         "selectLinks": ".search-box .thumb-menu > a",
         "preferShorterName": true
       },
+      "selectorSubjectFormatJsonPathIndexed": {
+        "selectLinks": "$[*]['url', 'link']",
+        "selectNames": "$[*]['title','name']",
+        "preferShorterName": true
+      },
       "channelFormatId": "index-grouped",
       "selectorChannelFormatFlattened": {
-        "selectChannelNames": ".module-tab-item",
-        "matchChannelName": "(?<ch>.+?)(\\d+?)",
-        "selectEpisodeLists": ".module-list > .module-blocklist",
+        "selectChannelNames": "div.stui-pannel-box.playlist > div.stui-pannel_hd > div > h3.title",
+        "matchChannelName": "^(?<ch>.+?)(\\d+)?$",
+        "selectEpisodeLists": ".stui-content__playlist",
         "selectEpisodesFromList": "a",
         "selectEpisodeLinksFromList": "",
         "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
@@ -36,17 +41,20 @@
       },
       "filterByEpisodeSort": true,
       "filterBySubjectName": true,
+      "selectMedia": {
+        "distinguishSubjectName": true,
+        "distinguishChannelName": true
+      },
       "matchVideo": {
         "enableNestedUrl": true,
-        "matchNestedUrl": "^.+/m3u8",
+        "matchNestedUrl": "^.+(m3u8|vip|xigua\\.php).+\\?",
         "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http(s)?:\\/\\/).+((\\.mp4)|(\\.mkv)|(m3u8)).*(\\?.+)?)|(akamaized)|(bilivideo.com)",
-        "cookies": "quality=1080P",
+        "cookies": "quality=1080",
         "addHeadersToVideo": {
           "referer": "",
           "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
         }
-      },
-      "defaultResolution": "1080P"
+      }
     },
     "tier": 4
   }
