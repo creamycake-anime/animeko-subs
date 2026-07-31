@@ -39,6 +39,9 @@
         }
       }
     },
-    "tier": 4
+    "tier": 4,
+    "channelTiers": {
+      "在线": 6
+    }
   }
 }

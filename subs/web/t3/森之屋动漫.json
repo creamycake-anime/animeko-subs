@@ -39,6 +39,9 @@
         }
       }
     },
-    "tier": 3
+    "tier": 3,
+    "channelTiers": {
+      "HD": 5
+    }
   }
 }

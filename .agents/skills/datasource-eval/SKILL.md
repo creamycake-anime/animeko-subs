@@ -1,6 +1,6 @@
 ---
 name: datasource-eval
-description: 评测 ani-subs 的 CSS selector 数据源并生成图文报告。跨多部番剧对每个 web selector 源跑完整解析流程 (searchSubjects→…→extractVideo)，用 Animeko 桌面播放器 (mpv) 真实播放每条线路测可播放性/起播耗时，ffprobe/ffmpeg 实测分辨率/码率/编码，detect_hls_ads 结构探测 HLS 插入广告并用 Ani 真实客户端过滤器验证能否自动滤除，多点截图后由 subagent 逐张看图判断博彩广告，最后生成三层报告 (总索引 + 每源线路拆解 + 每线路图文页)，含成功/失败原因与评测日期。当用户要"评测数据源/测试所有源/评估 selector 源/生成数据源报告/看哪些源能用/查数据源广告"时使用。
+description: 评测 ani-subs 的 CSS selector 数据源并生成图文报告。跨多部番剧对每个 web selector 源跑完整解析流程 (searchSubjects→…→extractVideo)，用 Animeko 桌面播放器 (mpv) 真实播放每条线路测可播放性/起播耗时，ffprobe/ffmpeg 实测分辨率/码率/编码，detect_hls_ads 结构探测 HLS 插入广告并用 Ani 真实客户端过滤器验证能否自动滤除，多点截图后由 subagent 逐张看图判断博彩广告，生成三层报告，并可把线路 T0–T6 同步到 Animeko v4.9+ 的 arguments.channelTiers。当用户要"评测数据源/测试所有源/评估 selector 源/生成数据源报告/看哪些源能用/查数据源广告/配置线路 tier/channel tier"时使用。
 ---
 
 # ani-subs 数据源评测
@@ -32,7 +32,7 @@ cd <animeko>/ani && ./gradlew :tools:datasource-test-mcp:installDist
 
 ## 流程
 
-所有脚本在 `.claude/skills/datasource-eval/scripts/` 下，第一个参数都是报告目录。
+所有脚本在 `.agents/skills/datasource-eval/scripts/` 下，第一个参数都是报告目录。
 
 ### 1. 选番剧 + 建报告目录
 
@@ -63,7 +63,7 @@ JSON
 对全部 selector 源 × 每部番，跑全流程解析 + **每条 resolved 线路**全量 mpv 实播（不设条数上限，采集可播性/起播）+ ffprobe 实测分辨率/码率（summary 每线路记 `bitrateSource`: `ffprobe_measured`/`ffprobe_format`/`player`）+ HLS 过滤器结论（`adFilter`，即 probe `adAnalysis.hlsFilter`，见第 4 步）+ 单帧广告启发式（仅参考，报告不采信）。断点续跑安全。
 
 ```bash
-python3 .claude/skills/datasource-eval/scripts/run_eval.py "$R"
+python3 .agents/skills/datasource-eval/scripts/run_eval.py "$R"
 ```
 产物: `$R/subjects/<id>-<名>/{sources/*.json 逐源 trace, summary.json 汇总, driver.log}`。
 耗时随线路数线性增长（每条线路实播 ~4s + ffprobe 采样 + 解析开销），每部番可达十几分钟。建议 `run_in_background` 并用日志盯进度。
@@ -94,14 +94,14 @@ ffprobe -v error -show_entries format=duration,size,bit_rate -print_format json 
 对**可用源**（跨番至少成功 1 次），按**每部番 × 每条线路全覆盖**重新解析。每条线路先用 MCP `detect_hls_ads` 做 **HLS 结构预筛**（真实客户端过滤器跑一遍 m3u8；疑似插入广告段的**中点（≤55s）自动加为截图点**，结果存 `adDetect` 供第 4 步判定用），再 mpv 长播（基础 28s，有加采点时相应延长，上限 60s）、在 0/3/8/15/25s + 加采点各截一帧，并跑 `ffprobe_all` 实测基础指标——每条线路都必须有图可供视觉判定，不许抽样。
 
 ```bash
-python3 .claude/skills/datasource-eval/scripts/deep_sample.py "$R"
+python3 .agents/skills/datasource-eval/scripts/deep_sample.py "$R"
 ```
 产物: `$R/deep/<tier>-<源>/<番>/<线路>/frames/frame_XXs.png` + 每源 `deep.json`（每线路含 `adDetect` 结构探测与 `ffprobe` 实测指标）。
 
 **补采模式**（可选，深采跑完后再跑）:
 
 ```bash
-python3 .claude/skills/datasource-eval/scripts/deep_sample.py "$R" --backfill-quick
+python3 .agents/skills/datasource-eval/scripts/deep_sample.py "$R" --backfill-quick
 ```
 
 找出快测曾真实播放成功、但深采二次解析未复现截图的 (番剧, 线路)，**复用快测保存的视频 URL** 直接补跑与主深采同口径的采样（detect_hls_ads 结构预筛 + 加采点 + 长播多点截图 + ffprobe，省掉二次解析，记录带 `backfilledFromQuick: true` 标记）。补跑失败（URL 过期/截不到帧）则跳过并记日志，该线路保持"未判定"——**不会拿快测的开头两帧充当视觉证据**（那只覆盖 ~4s，判不出轻/中/重）。
@@ -136,7 +136,7 @@ python3 .claude/skills/datasource-eval/scripts/deep_sample.py "$R" --backfill-qu
 ### 5. 生成报告
 
 ```bash
-python3 .claude/skills/datasource-eval/scripts/gen_report.py "$R"
+python3 .agents/skills/datasource-eval/scripts/gen_report.py "$R"
 ```
 产物（全部在 `$R/`）:
 - `README.md` — 总索引: 评测日期 → **推荐线路**（每源最佳的无广告稳定线路）→ 源级汇总表 → **各源线路拆解**（每线路 × 每部番实播 ✅/❌/— + 失败原因）→ **搜索阶段失败** 与 **解析/匹配阶段失败** 两节带原因。
@@ -144,6 +144,45 @@ python3 .claude/skills/datasource-eval/scripts/gen_report.py "$R"
 - `channels/<tier>-<源>-<线路>.md` — 每线路图文页: 广告判定 + 播放采样画廊 + 媒体信息 + 播放性能 + 跨番实播/失败原因。
 
 改了 `frames_verdicts.json` 后重跑 gen_report 即可刷新，无需重测。
+
+### 6. 同步线路 Tier 到订阅配置（Animeko v4.9+）
+
+Animeko [PR #3205](https://github.com/open-ani/animeko/pull/3205) 起支持
+`SelectorMediaSourceArguments.channelTiers`。键必须与解析出的 channel 名
+（`Media.properties.alliance`）逐字一致，值为数字 tier；channel 配置优先，未列出的
+channel 回退到源级 `arguments.tier`。有效 tier 参与跨源排序，tier 0 还参与快速选择。
+旧客户端会忽略未知字段，不需要提升 selector codec `version`。
+
+报告和视觉判定定稿后，把本报告的线路能力 T0–T6（JSON 中写为 `0`–`6`）同步到独立源配置：
+
+```bash
+python3 .agents/skills/datasource-eval/scripts/sync_channel_tiers.py "$R" \
+  --sources-dir subs/web
+python3 .agents/skills/datasource-eval/scripts/sync_channel_tiers.py "$R" \
+  --sources-dir subs/web --check
+```
+
+脚本用 `sources_manifest.json` 的冻结配置精确匹配当前源：先仅忽略待生成的
+`channelTiers`；只有给原本未分级的导入源补过源级 tier 时，才在第二阶段忽略源级
+`tier`，除此之外配置必须一致。写入所有在报告中出现过的非空 channel：
+实测优质线路写 T0–T4，重广告/低质写 T5，从未播成或证据不足写 T6，防止它们回退到
+较高的源级优先级。`channel == null`/空字符串无法被 Animeko 的 channel 覆盖查询命中，
+必须告警并回退源 tier；不要伪造 `"默认"` 键。
+
+示例：
+
+```json
+{
+  "tier": 3,
+  "channelTiers": {
+    "高清在线": 1,
+    "线路3": 5,
+    "备用": 6
+  }
+}
+```
+
+这里的线路能力 T0–T6 与 `subs/web/t0`–`t4` 目录及源级静态优先级仍是两套概念。
 
 ### 可选但强烈推荐: chrome-devtools MCP(浏览器真相源)
 
@@ -199,6 +238,7 @@ python3 .claude/skills/datasource-eval/scripts/gen_report.py "$R"
 
 - **推荐线路**: 直接告诉用户播哪个源的哪条线路（无广告 + 跨番稳定 + 画质好）。
 - **线路能力分级 (T0–T6)**: 给客户端排优先级用的硬指标分级（见上节标准），T0 = 查询成功即可直接播、无需等待其他源。注意与 `subs/web` 的 t0–t4 **目录**分层是两回事。
+- **`arguments.channelTiers`**: 将线路能力分级写入 Animeko v4.9+ 的有效 tier；线路名必须与报告/`alliance` 完全一致，空线路名不能覆盖。
 - **可播证据**: ✅ 含 run_eval 快测与 deep 长播两路实播成功；deep 失败不记 ❌（二次解析可能只是 URL 过期）。
 - **广告等级**: 无（干净）/ 轻（横幅仅片头/片尾）/ 中（片中也有横幅）/ 重（全程水印，或滤不掉的插入广告片段）；`*` 表示该源另有更脏线路。博彩水印是合规风险重点。
 - **失败原因**: "搜索阶段失败"（验证码/域名失效 → 基本没救）vs "解析阶段失败"（selector 失配/js 伪链接 → 配置可修）——给维护者明确修复方向。
