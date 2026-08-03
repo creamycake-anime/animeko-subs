@@ -17,15 +17,15 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from lib import (Mcp, ffprobe_all, load_meta, pick_bitrate_resolution, playback_ok,
-                 repo_root, require_mcp_bin, require_player_available, safe_dir)
+                 repo_root, require_mcp_bin, require_player_available,
+                 resolve_sources_root, safe_dir)
 
-SUBS_ROOT = repo_root() / "subs" / "web"
 MAX_CANDIDATES = 100  # 实际上不设限: 每条线路都要解析并实播
 
 
-def collect_sources(only):
+def collect_sources(root, only):
     out = []
-    for tier_dir in sorted(SUBS_ROOT.iterdir()):
+    for tier_dir in sorted(root.iterdir()):
         if tier_dir.is_dir():
             for f in sorted(tier_dir.glob("*.json")):
                 if not only or f.stem in only:
@@ -42,11 +42,12 @@ def stage_timings(resolve):
 
 
 def main():
-    report_dir = pathlib.Path(sys.argv[1])
+    report_dir = pathlib.Path(sys.argv[1]).resolve()
     only = set(sys.argv[2:])
     meta = load_meta(report_dir)
     mcp_bin = require_mcp_bin(meta)
     subjects = meta["subjects"]
+    sources_root = resolve_sources_root(report_dir, meta)
 
     for sub in subjects:
         sid, ep, name = sub["subjectId"], sub["episodeId"], sub["name"]
@@ -65,7 +66,7 @@ def main():
         summary = json.loads(summary_path.read_text()) if summary_path.exists() else []
         done = {r["source"] for r in summary}
 
-        sources = collect_sources(only)
+        sources = collect_sources(sources_root, only)
         log(f"=== [{name}] {len(sources)} 源, 已完成 {len(done)}")
         for tier, f in sources:
             src = f.stem
@@ -79,7 +80,9 @@ def main():
             record["validate"] = server.call("validate_selector_config", {"config": config}, 120)
             resolve = server.call("selector_resolve_episode", {
                 "subjectId": sid, "episodeId": ep, "config": config,
-                "extractVideo": True, "probeVideo": True, "extractMode": "all_channels",
+                # selector 只负责保留全部最终 URL；内部 HTTP probe 冗余且不作为可播依据。
+                # 每条 resolved URL 在下方统一交给 probe_video 做 Animeko mpv 实播。
+                "extractVideo": True, "probeVideo": False, "extractMode": "all_channels",
                 "maxCandidatesToExtract": MAX_CANDIDATES, "maxSubjectsPerName": 2,
                 "probeTimeoutMillis": 12000,
             }, 20 * 60)

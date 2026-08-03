@@ -1,0 +1,67 @@
+{
+      "factoryId": "web-selector",
+      "version": 2,
+      "arguments": {
+        "name": "hanime1_720p",
+        "description": "1080放不出来用这个（说明无1080p）",
+        "iconUrl": "https://gitee.com/wan0ge/extract-pure-links/raw/Ani_Pages/favicon/hanime1.me_720.png",
+        "searchConfig": {
+          "searchUrl": "https://hanime1.me/search?query={keyword}",
+          "searchUseOnlyFirstWord": false,
+          "searchRemoveSpecial": true,
+          "searchUseSubjectNamesCount": 2,
+          "rawBaseUrl": "",
+          "requestInterval": 400,
+          "subjectFormatId": "indexed",
+          "selectorSubjectFormatA": {
+            "selectLists": "div.home-rows-videos-wrapper a",
+            "preferShorterName": false
+          },
+          "selectorSubjectFormatIndexed": {
+            "selectNames": "#home-rows-wrapper > div.content-padding-new > div > div > div > div > a > div.title",
+            "selectLinks": "#home-rows-wrapper > div.content-padding-new > div > div > div> div > a",
+            "preferShorterName": true
+          },
+          "selectorSubjectFormatJsonPathIndexed": {
+            "selectLinks": "$[*]['url', 'link']",
+            "selectNames": "$[*]['title','name']",
+            "preferShorterName": true
+          },
+          "channelFormatId": "index-grouped",
+          "selectorChannelFormatFlattened": {
+            "selectChannelNames": "#video-artist-name",
+            "matchChannelName": "",
+            "selectEpisodeLists": "#playlist-scroll",
+            "selectEpisodesFromList": "h4.video-title > a",
+            "selectEpisodeLinksFromList": "",
+            "matchEpisodeSortFromName": "(?<ep>(?:SP\\s\\d+|\\d+))"
+          },
+          "selectorChannelFormatNoChannel": {
+            "selectEpisodes": "#playlist-scroll h4.video-title > a",
+            "selectEpisodeLinks": "",
+            "matchEpisodeSortFromName": "(?<ep>(?:SP\\s\\d+|\\d+))"
+          },
+          "defaultResolution": "720P",
+          "defaultSubtitleLanguage": "CHS",
+          "onlySupportsPlayers": [],
+          "filterByEpisodeSort": true,
+          "filterBySubjectName": false,
+          "selectMedia": {
+            "distinguishSubjectName": false,
+            "distinguishChannelName": false
+          },
+          "matchVideo": {
+            "enableNestedUrl": true,
+            "matchNestedUrl": "^(?=.*(index))(?=.*(1080|720|480)).*?(m3u8|mp4|vip|xigua\\.php).*",
+            "matchVideoUrl": "(?<v>https?:\\/\\/(?:[^\\/]*\\.)?(vdownload|abre-videos|xvideos).*?(1080|720|480).*\\.(m3u8|mp4|vip|xigua\\.php)(?:\\?.+)?)",
+            "cookies": "quality=720",
+            "addHeadersToVideo": {
+              "referer": "",
+              "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+            }
+          }
+        },
+        "tier": 4,
+        "channelTiers": {}
+      }
+}

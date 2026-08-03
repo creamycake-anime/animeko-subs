@@ -62,6 +62,12 @@ JSON
 
 对全部 selector 源 × 每部番，跑全流程解析 + **每条 resolved 线路**全量 mpv 实播（不设条数上限，采集可播性/起播）+ ffprobe 实测分辨率/码率（summary 每线路记 `bitrateSource`: `ffprobe_measured`/`ffprobe_format`/`player`）+ HLS 过滤器结论（`adFilter`，即 probe `adAnalysis.hlsFilter`，见第 4 步）+ 单帧广告启发式（仅参考，报告不采信）。断点续跑安全。
 
+`run_eval.py` 与 `deep_sample.py` 调用 `selector_resolve_episode` 时必须传
+`probeVideo=false`：selector 阶段只负责完整保留 WebView 解析出的最终 URL，不运行其内部的
+HTTP 可达性 probe。随后每条 resolved URL 统一调用 `probe_video`，以 Animeko mpv 的
+`playback.ran && playback.ok` 作为唯一可播结论。不得把内部 HTTP probe 当作实播，也不得让
+其超时阻断后续 mpv 测试。
+
 ```bash
 python3 .agents/skills/datasource-eval/scripts/run_eval.py "$R"
 ```
@@ -87,11 +93,11 @@ ffprobe -v error -show_entries format=duration,size,bit_rate -print_format json 
 # bit_rate ≈ size*8/duration; 脚本 lib.py 的 ffprobe_all() 就是这套
 ```
 
-许多盗版源把分片伪装成 `.jpeg`/`.png` 扩展名，需 `-allowed_extensions ALL`（ffmpeg 7.1+ 再加 `-extension_picky 0`，脚本会自动探测追加）；ffprobe 仍拒绝的流，该线路以 mpv 实播数据为准。
+许多盗版源把 HLS 分片伪装成 `.jpeg`/`.png` 扩展名，需 `-allowed_extensions ALL`（ffmpeg 7.1+ 再加 `-extension_picky 0`，脚本会自动探测追加）；这些 HLS demuxer 参数只用于 m3u8、无扩展名等可疑输入，明确的 `.mp4`/`.mkv`/`.webm`/`.flv`/`.avi`/`.mov` 直链不得附加，否则 ffmpeg 会报 `Option extension_picky not found`。ffprobe 仍拒绝的流，该线路以 mpv 实播数据为准。
 
 ### 3. 深度采样 (为看图判广告)
 
-对**可用源**（跨番至少成功 1 次），按**每部番 × 每条线路全覆盖**重新解析。每条线路先用 MCP `detect_hls_ads` 做 **HLS 结构预筛**（真实客户端过滤器跑一遍 m3u8；疑似插入广告段的**中点（≤55s）自动加为截图点**，结果存 `adDetect` 供第 4 步判定用），再 mpv 长播（基础 28s，有加采点时相应延长，上限 60s）、在 0/3/8/15/25s + 加采点各截一帧，并跑 `ffprobe_all` 实测基础指标——每条线路都必须有图可供视觉判定，不许抽样。
+对**可用源**（跨番至少成功 1 次），按**每部番 × 每条线路全覆盖**重新解析。每条线路先用 MCP `detect_hls_ads` 做 **HLS 结构预筛**（真实客户端过滤器跑一遍 m3u8；疑似插入广告段的**中点（≤55s）自动加为截图点**，结果存 `adDetect` 供第 4 步判定用）；URL 路径明确以 `.mp4`/`.mkv`/`.webm`/`.flv`/`.avi`/`.mov` 结尾时直接记录 `skippedNonHls: true`，避免把大体积直链当 m3u8 下载至超时，广告改由多点截图判定；无扩展名或其他可疑地址仍交给 MCP。随后 mpv 长播（基础 28s，有加采点时相应延长，上限 60s）、在 0/3/8/15/25s + 加采点各截一帧，并跑 `ffprobe_all` 实测基础指标——每条线路都必须有图可供视觉判定，不许抽样。
 
 ```bash
 python3 .agents/skills/datasource-eval/scripts/deep_sample.py "$R"

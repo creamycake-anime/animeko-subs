@@ -14,13 +14,14 @@ import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 # 报告目录布局: <report_dir>/{meta.json, subjects/, deep/, montage/, combined/, sources/, channels/, README.md}
 
 
 def repo_root():
-    """ani-subs 仓库根 (脚本在 .claude/skills/datasource-eval/scripts/ 下)."""
+    """ani-subs 仓库根 (脚本在 .agents/skills/datasource-eval/scripts/ 下)."""
     return pathlib.Path(__file__).resolve().parents[4]
 
 
@@ -60,6 +61,24 @@ def require_mcp_bin(meta=None):
 
 def load_meta(report_dir):
     return json.loads((pathlib.Path(report_dir) / "meta.json").read_text())
+
+
+def resolve_sources_root(report_dir, meta):
+    """解析本次评测使用的 selector 配置根目录。
+
+    meta.sourcesRoot 的相对路径优先相对于报告目录解析，便于报告冻结自己的 configs/；
+    若该位置不存在，再相对于仓库根解析。未配置时保持兼容，读取 subs/web。
+    """
+    value = meta.get("sourcesRoot")
+    if not value:
+        return repo_root() / "subs" / "web"
+    root = pathlib.Path(value)
+    if root.is_absolute():
+        return root
+    report_relative = pathlib.Path(report_dir) / root
+    if report_relative.exists():
+        return report_relative
+    return repo_root() / root
 
 
 def playback_ok(probe):
@@ -224,6 +243,13 @@ class Mcp:
 # ---- ffprobe / ffmpeg: 码率/分辨率/编码等基础媒体指标 (mpv 实播只负责可播性/起播/卡顿) ----
 
 _HLS_PICKY_CACHE = {}
+DIRECT_MEDIA_SUFFIXES = frozenset({".mp4", ".mkv", ".webm", ".flv", ".avi", ".mov"})
+
+
+def is_explicit_direct_media(url):
+    """URL 路径有明确的非 HLS 媒体后缀。查询参数不参与判断。"""
+    path = urllib.parse.urlsplit(str(url)).path
+    return pathlib.PurePosixPath(path).suffix.lower() in DIRECT_MEDIA_SUFFIXES
 
 
 def _hls_flags(bin_name):
@@ -242,6 +268,15 @@ def _hls_flags(bin_name):
     if _HLS_PICKY_CACHE[bin_name]:
         flags += ["-extension_picky", "0"]
     return flags
+
+
+def _input_flags(bin_name, url):
+    """只给 HLS/无扩展名等可疑输入附加 HLS demuxer 参数。
+
+    ``extension_picky`` 是 HLS demuxer 私有选项；传给明确的 MP4 等直链时，
+    ffmpeg 会以 ``Option extension_picky not found`` 直接拒绝输入。
+    """
+    return [] if is_explicit_direct_media(url) else _hls_flags(bin_name)
 
 
 def _headers_arg(headers):
@@ -264,7 +299,7 @@ def ffprobe_streams(url, headers=None, timeout=30):
     注意: HLS 直连的 format.bit_rate 常缺/不可靠, 平均码率实测用 ffmpeg_measure_bitrate.
     """
     cmd = ["ffprobe", "-v", "error", "-print_format", "json",
-           "-show_format", "-show_streams", *_hls_flags("ffprobe")]
+           "-show_format", "-show_streams", *_input_flags("ffprobe", url)]
     ha = _headers_arg(headers)
     if ha:
         cmd += ["-headers", ha]
@@ -317,7 +352,7 @@ def ffmpeg_measure_bitrate(url, headers=None, seconds=30, timeout=None):
         ha = _headers_arg(headers)
         if ha:
             cmd += ["-headers", ha]
-        cmd += [*_hls_flags("ffmpeg"), "-t", str(seconds), "-i", str(url),
+        cmd += [*_input_flags("ffmpeg", url), "-t", str(seconds), "-i", str(url),
                 "-c", "copy", "-f", "mpegts", tmp]
         try:
             p = subprocess.run(cmd, capture_output=True, timeout=timeout)

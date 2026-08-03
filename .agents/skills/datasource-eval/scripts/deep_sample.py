@@ -22,16 +22,15 @@ import time
 from datetime import datetime, timezone
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lib import (Mcp, ffprobe_all, load_meta, playback_ok, repo_root, require_mcp_bin,
-                 require_player_available, safe_dir)
+from lib import (Mcp, ffprobe_all, is_explicit_direct_media, load_meta, playback_ok,
+                 require_mcp_bin, require_player_available, resolve_sources_root, safe_dir)
 
-SUBS_ROOT = repo_root() / "subs" / "web"
 MAX_CANDIDATES = 100          # 实际上不设限: 每条线路都要深采
 SAMPLE_SECONDS = [0, 3, 8, 15, 25]
 
 
-def find_config(name):
-    for f in SUBS_ROOT.glob(f"*/{name}.json"):
+def find_config(root, name):
+    for f in root.glob(f"*/{name}.json"):
         return f
     return None
 
@@ -73,6 +72,28 @@ def ad_capture_plan(ad_detect):
     capture_at = sorted(set(SAMPLE_SECONDS) | set(extras))
     play_seconds = min(60, max(28, max(capture_at) + 3))
     return groups, extras, capture_at, play_seconds
+
+
+def detect_hls_ads(server, url, headers):
+    """只对可能是 HLS 的地址调用结构探测。
+
+    MCP 的 ``detect_hls_ads`` 会把无扩展名地址也按 HLS 尝试，这对伪装/无后缀的
+    m3u8 很重要；但对明确以 MP4 等直链后缀结尾的地址没有结构广告可分析，强制
+    下载并按文本解析既无意义，也可能一直读取大文件直到超时。此处只短路这些
+    明确的非 HLS 直链，其余地址仍交给 MCP 判定。
+    """
+    if not is_explicit_direct_media(url):
+        return server.call("detect_hls_ads", {"url": url, "headers": headers}, 120)
+    suffix = pathlib.PurePosixPath(url.split("?", 1)[0]).suffix.lower()
+    reason = f"明确的非 HLS 直链 ({suffix}); 跳过 HLS 结构广告探测，广告以多点截图判定"
+    return {
+        "ok": False,
+        "url": url,
+        "summary": reason,
+        "analysis": {"suspicion": "unknown", "reasons": [reason]},
+        "errors": [],
+        "skippedNonHls": True,
+    }
 
 
 def backfill_quick_success(report_dir, deep_dir, server, log):
@@ -126,8 +147,10 @@ def backfill_quick_success(report_dir, deep_dir, server, log):
                 if ckey in seen_quick_channels:
                     continue
                 seen_quick_channels.add(ckey)
+                # 少量首帧并不足以判断 0/3/8/15/25s 的广告变化；只有至少覆盖
+                # 全部基础采样点，才算已有可供视觉复核的完整证据。
                 if any(_channel_key(c.get("channel")) == ckey and
-                       (c.get("probe") or {}).get("capturedFrames")
+                       len((c.get("probe") or {}).get("capturedFrames") or []) >= len(SAMPLE_SECONDS)
                        for c in run.get("channels", [])):
                     continue
 
@@ -139,7 +162,7 @@ def backfill_quick_success(report_dir, deep_dir, server, log):
                 fdir = src_dir / subject_name / f"{safe_dir(ckey)}__quick-backfill" / "frames"
                 log(f"[backfill] {source}/{ckey} · {subject_name}")
                 # 与主深采同口径: 结构预筛 + 加采点 + ffprobe 实测
-                ad_detect = server.call("detect_hls_ads", {"url": url, "headers": headers}, 120)
+                ad_detect = detect_hls_ads(server, url, headers)
                 _groups, extras, capture_at, play_seconds = ad_capture_plan(ad_detect)
                 if extras:
                     log(f"  HLS 检出疑似插入片段, 加采 {extras}s, 长播 {play_seconds}s")
@@ -171,11 +194,12 @@ def backfill_quick_success(report_dir, deep_dir, server, log):
 
 
 def main():
-    report_dir = pathlib.Path(sys.argv[1])
+    report_dir = pathlib.Path(sys.argv[1]).resolve()
     meta = load_meta(report_dir)
     mcp_bin = require_mcp_bin(meta)
     ep_of = {str(s["subjectId"]): (s["episodeId"], s["name"]) for s in meta["subjects"]}
     subject_ids = [str(s["subjectId"]) for s in meta["subjects"]]
+    sources_root = resolve_sources_root(report_dir, meta)
 
     deep_dir = report_dir / "deep"
     deep_dir.mkdir(parents=True, exist_ok=True)
@@ -200,7 +224,7 @@ def main():
         if (src_dir / "deep.json").exists():
             log(f"[skip] {tier}-{name}")
             continue
-        cfg = find_config(name)
+        cfg = find_config(sources_root, name)
         if not cfg:
             continue
         config = json.loads(cfg.read_text())
@@ -226,7 +250,7 @@ def main():
                 fdir = src_dir / sub_name / ch / "frames"
                 # HLS 结构预筛: 拉 m3u8 跑结构启发式 + Ani 真实客户端广告过滤器 (HlsManifestFilter);
                 # 疑似插入广告段的中点 (≤55s) 自动加为截图点, 结果 (adDetect) 供看图判定用
-                ad_detect = server.call("detect_hls_ads", {"url": rv["url"], "headers": headers}, 120)
+                ad_detect = detect_hls_ads(server, rv["url"], headers)
                 groups, extras, capture_at, play_seconds = ad_capture_plan(ad_detect)
                 if extras:
                     log(f"    {ch}: HLS 检出疑似插入片段 {len(groups)} 组, 加采 {extras}s, "

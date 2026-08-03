@@ -1,0 +1,67 @@
+{
+  "factoryId": "web-selector",
+  "version": 2,
+  "arguments": {
+    "name": "稀饭动漫",
+    "description": "",
+    "iconUrl": "https://dm1.xfdm.pro/upload/site/20240308-1/813e41f81d6f85bfd7a44bf8a813f9e5.png",
+    "searchConfig": {
+      "searchUrl": "https://dm1.xfdm.pro/search.html?wd={keyword}",
+      "searchUseOnlyFirstWord": true,
+      "rawBaseUrl": "",
+      "subjectFormatId": "indexed",
+      "selectorSubjectFormatA": {
+        "selectLists": "div.video-info-header > a",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatIndexed": {
+        "selectNames": "body > .box-width .search-box .thumb-content > .thumb-txt",
+        "selectLinks": "body > .box-width .search-box .thumb-menu > a",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatJsonPathIndexed": {
+        "selectLinks": "$[*]['url', 'link']",
+        "selectNames": "$[*]['title','name']",
+        "preferShorterName": true
+      },
+      "channelFormatId": "index-grouped",
+      "selectorChannelFormatFlattened": {
+        "selectChannelNames": ".anthology-tab > .swiper-wrapper a",
+        "matchChannelName": "^()?(?<ch>.+?)(\\d+)?$",
+        "selectEpisodeLists": ".anthology-list-box",
+        "selectEpisodesFromList": "a",
+        "selectEpisodeLinksFromList": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "selectorChannelFormatNoChannel": {
+        "selectEpisodes": "#glist-1 > div.module-blocklist.scroll-box.scroll-box-y > div > a",
+        "selectEpisodeLinks": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "filterByEpisodeSort": true,
+      "filterBySubjectName": true,
+      "selectMedia": {
+        "distinguishSubjectName": true,
+        "distinguishChannelName": true
+      },
+      "matchVideo": {
+        "enableNestedUrl": true,
+        "matchNestedUrl": "^.+(m3u8|vip|xigua\\.php).+\\?",
+        "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http(s)?:\\/\\/).+((\\.mp4)|(\\.mkv)|(m3u8)).*(\\?.+)?)|(akamaized)|(bilivideo.com)",
+        "cookies": "quality=1080",
+        "addHeadersToVideo": {
+          "referer": "",
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+        }
+      },
+      "defaultResolution": "1080P"
+    },
+    "channelTiers": {
+      "新番主线②": 0,
+      "新番主线①": 0,
+      "旧番主线①": 1,
+      "备用①": 6
+    },
+    "tier": 0
+  }
+}
