@@ -4,7 +4,7 @@
   "arguments": {
     "name": "girigiri愛動漫",
     "description": "",
-    "iconUrl": "https://picui.ogmua.cn/s1/2026/03/10/69afb489ae341.webp",
+    "iconUrl": "https://girigirilove.top/app/app_files/anime.girigirilove.com_.png",
     "searchConfig": {
       "searchUrl": "https://ani.girigirilove.com/search/-------------/?wd={keyword}",
       "searchUseOnlyFirstWord": true,
@@ -53,7 +53,7 @@
       "matchVideo": {
         "enableNestedUrl": true,
         "matchNestedUrl": "^.+(vip|index\\.php).+\\?",
-        "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http(s)?:\\/\\/).+((m3u8)).*(\\?.+)?)|(akamaized)|(bilivideo.com)|(url=(?<v>.+playlist.m3u8))",
+        "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http(s)?:\\/\\/).+((m3u8)).*(\\?.+)?)|(akamaized)|(bilivideo.com)|(url=(?<v>.+(playlist\\.m3u8|\\.mp4|\\.mkv)))",
         "cookies": "quality=1080P",
         "addHeadersToVideo": {
           "referer": "",
