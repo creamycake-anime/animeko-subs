@@ -47,7 +47,7 @@
       "matchVideo": {
         "enableNestedUrl": true,
         "matchNestedUrl": "^.+(m3u8|vip|xigua\\.php).+\\?",
-        "matchVideoUrl": "(http(s)?:\\/\\/(?!.*http(s)?:\\/\\/).+((\\.mp4)|(\\.mkv)|(m3u8)).*(\\?.+)?)|(akamaized)|(bilivideo.com)",
+        "matchVideoUrl": "(?<v>http(s)?:\\/\\/(?!.*http(s)?:\\/\\/).+((\\.mp4)|(\\.mkv)|(m3u8)).*(\\?.+)?)|(akamaized)|(bilivideo.com)",
         "cookies": "quality=1080",
         "addHeadersToVideo": {
           "referer": "",
