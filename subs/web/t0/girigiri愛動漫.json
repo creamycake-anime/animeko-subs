@@ -4,7 +4,7 @@
   "arguments": {
     "name": "girigiri愛動漫",
     "description": "",
-    "iconUrl": "https://girigirilove.top/app/app_files/anime.girigirilove.com_.png",
+    "iconUrl": "https://girigirilove.com/app/app_files/anime.girigirilove.com_.png",
     "searchConfig": {
       "searchUrl": "https://ani.girigirilove.com/search/-------------/?wd={keyword}",
       "searchUseOnlyFirstWord": true,
