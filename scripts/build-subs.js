@@ -72,6 +72,15 @@ const targets = [
     ],
   },
   {
+    name: "api1",
+    inputDir: path.join(rootDir, "subs", "api"),
+    outputFile: path.join(outputDir, "api1.json"),
+    recursive: true,
+    sortByTier: true,
+    enforceTierDirs: true,
+    order: [],
+  },
+  {
     name: "bt1",
     inputDir: path.join(rootDir, "subs", "bt"),
     outputFile: path.join(outputDir, "bt1.json"),
