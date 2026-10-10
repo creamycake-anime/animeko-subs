@@ -6,25 +6,17 @@
     "description": "",
     "iconUrl": "https://girigirilove.com/app/app_files/anime.girigirilove.com_.png",
     "searchConfig": {
-      "searchUrl": "https://ani.girigirilove.com/search/-------------/?wd={keyword}",
+      "searchUrl": "https://ani.girigirilove.com/index.php/ajax/suggest?mid=1&wd={keyword}",
       "searchUseOnlyFirstWord": true,
       "searchRemoveSpecial": true,
       "searchUseSubjectNamesCount": 1,
       "rawBaseUrl": "",
       "requestInterval": 3000,
-      "subjectFormatId": "indexed",
-      "selectorSubjectFormatA": {
-        "selectLists": "div.video-info-header > a",
-        "preferShorterName": true
-      },
-      "selectorSubjectFormatIndexed": {
-        "selectNames": "body > .box-width .vod-detail .detail-info .slide-info-title",
-        "selectLinks": "body > .box-width .vod-detail .detail-info > a",
-        "preferShorterName": true
-      },
+      "subjectFormatId": "json-path-indexed",
       "selectorSubjectFormatJsonPathIndexed": {
-        "selectLinks": "$[*]['url', 'link']",
-        "selectNames": "$[*]['title','name']",
+        "selectLinks": "$.list[*]['id']",
+        "selectNames": "$.list[*]['name']",
+        "linkTemplate": "/GV{value}/",
         "preferShorterName": true
       },
       "channelFormatId": "index-grouped",
