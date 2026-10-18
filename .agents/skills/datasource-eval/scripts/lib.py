@@ -60,7 +60,7 @@ def require_mcp_bin(meta=None):
 
 
 def load_meta(report_dir):
-    return json.loads((pathlib.Path(report_dir) / "meta.json").read_text())
+    return json.loads((pathlib.Path(report_dir) / "meta.json").read_text(encoding="utf-8"))
 
 
 def resolve_sources_root(report_dir, meta):
