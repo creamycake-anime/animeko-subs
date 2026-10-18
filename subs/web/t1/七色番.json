@@ -1,0 +1,67 @@
+{
+  "id": "qisefan",
+  "clientVersions": ">=6.3.0",
+  "factoryId": "web-selector",
+  "version": 2,
+  "arguments": {
+    "name": "七色番",
+    "description": "",
+    "iconUrl": "https://www.7sefun.top/favicon.ico",
+    "searchConfig": {
+      "searchUrl": "https://www.7sefun.top/index.php/ajax/suggest?mid=1&wd={keyword}",
+      "searchUseOnlyFirstWord": true,
+      "searchRemoveSpecial": true,
+      "rawBaseUrl": "",
+      "subjectFormatId": "json-path-indexed",
+      "selectorSubjectFormatA": {
+        "selectLists": "",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatIndexed": {
+        "selectNames": "",
+        "selectLinks": "",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatJsonPathIndexed": {
+        "selectLinks": "$.list[*]['id']",
+        "selectNames": "$.list[*]['name']",
+        "linkTemplate": "/voddetail/{value}.html",
+        "preferShorterName": true
+      },
+      "channelFormatId": "index-grouped",
+      "selectorChannelFormatFlattened": {
+        "selectChannelNames": ".chat-stream-bfqs li",
+        "matchChannelName": "",
+        "selectEpisodeLists": ".vod-play-list-container",
+        "selectEpisodesFromList": "a",
+        "selectEpisodeLinksFromList": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "selectorChannelFormatNoChannel": {
+        "selectEpisodes": ".vod-play-list-container a",
+        "selectEpisodeLinks": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "filterByEpisodeSort": true,
+      "selectMedia": {
+        "distinguishSubjectName": true,
+        "distinguishChannelName": true
+      },
+      "matchVideo": {
+        "enableNestedUrl": true,
+        "matchNestedUrl": "^https?://[^/]+/play/\\d+_\\d+_\\d+\\.html|^https?://[^/]+/addons/dp/player/[^?]*\\.php\\?|^https?://[^/]+/(jx\\.php|player/index\\.php)\\?",
+        "matchVideoUrl": "(?<v>^https?://[^\\s]+\\.(mp4|m3u8|flv|mkv)(\\?.*)?$)",
+        "addHeadersToVideo": {
+          "referer": ""
+        }
+      },
+      "defaultResolution": "1080P",
+      "defaultSubtitleLanguage": "CHS"
+    },
+    "tier": 1,
+    "channelTiers": {
+      "七色A线": 0,
+      "七色B线": 0
+    }
+  }
+}
