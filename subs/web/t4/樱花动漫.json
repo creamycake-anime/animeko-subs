@@ -53,7 +53,7 @@
       "matchVideo": {
         "enableNestedUrl": true,
         "matchNestedUrl": "^https?://player\\.mcue\\.cc/.+",
-        "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http(s)?:\\/\\/).+((\\.mp4)|(\\.mkv)|(m3u8)).*(\\?.+)?)|(akamaized)|(bilivideo.com)|(.+\\?url=(?<v>.+(playlist\\.m3u8|\\.mp4|\\.mkv)))",
+        "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http(s)?:\\/\\/).+((\\.mp4)|(\\.mkv)|(\\.m3u8)).*(\\?.+)?)|(akamaized)|(bilivideo.com)|(.+\\?url=(?<v>.+(playlist\\.m3u8|\\.mp4|\\.mkv)))",
         "addHeadersToVideo": {
           "referer": "https://player.mcue.cc/",
           "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
