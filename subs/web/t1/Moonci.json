@@ -1,0 +1,67 @@
+{
+  "id": "moonci",
+  "factoryId": "web-selector",
+  "version": 2,
+  "arguments": {
+    "name": "Moonci",
+    "description": "",
+    "iconUrl": "https://www.moonci.com/template/conch/asset/img/favicon.png",
+    "searchConfig": {
+      "searchUrl": "https://www.moonci.com/search/-------------.html?wd={keyword}",
+      "searchUseOnlyFirstWord": true,
+      "searchRemoveSpecial": true,
+      "rawBaseUrl": "",
+      "subjectFormatId": "a",
+      "selectorSubjectFormatA": {
+        "selectLists": "ul.hl-one-list .hl-item-title > a",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatIndexed": {
+        "selectNames": "",
+        "selectLinks": "",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatJsonPathIndexed": {
+        "selectLinks": "$[*]['url', 'link']",
+        "selectNames": "$[*]['title','name']",
+        "preferShorterName": true
+      },
+      "channelFormatId": "index-grouped",
+      "selectorChannelFormatFlattened": {
+        "selectChannelNames": ".hl-play-source .hl-plays-from a.hl-tabs-btn",
+        "matchChannelName": "",
+        "selectEpisodeLists": ".hl-play-source .hl-tabs-box",
+        "selectEpisodesFromList": "a[href*='/play/']",
+        "selectEpisodeLinksFromList": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "selectorChannelFormatNoChannel": {
+        "selectEpisodes": ".hl-play-source .hl-plays-list a[href*='/play/']",
+        "selectEpisodeLinks": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "filterByEpisodeSort": true,
+      "selectMedia": {
+        "distinguishSubjectName": true,
+        "distinguishChannelName": true
+      },
+      "matchVideo": {
+        "enableNestedUrl": true,
+        "matchNestedUrl": "^https?://(www\\.)?moonci\\.com/player/\\?url=|^https?://next\\.xifanacg\\.com/anime/\\d+/play/\\d+",
+        "matchVideoUrl": "(?<v>^https?://[^\\s]+\\.(mp4|m3u8|flv|mkv)(\\?[^\\s]*)?$)",
+        "addHeadersToVideo": {
+          "referer": ""
+        }
+      },
+      "defaultResolution": "1080P",
+      "defaultSubtitleLanguage": "CHS"
+    },
+    "tier": 1,
+    "channelTiers": {
+      "X.1": 0,
+      "X.2": 0,
+      "X.4": 0,
+      "X.3": 6
+    }
+  }
+}
