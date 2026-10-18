@@ -1,0 +1,66 @@
+{
+  "id": "dm84",
+  "factoryId": "web-selector",
+  "version": 2,
+  "arguments": {
+    "name": "DM84",
+    "description": "",
+    "iconUrl": "https://dmbus.cc/favicon.ico",
+    "searchConfig": {
+      "searchUrl": "https://dmbus.cc/s----------.html?wd={keyword}",
+      "searchUseOnlyFirstWord": true,
+      "searchRemoveSpecial": true,
+      "rawBaseUrl": "",
+      "subjectFormatId": "a",
+      "selectorSubjectFormatA": {
+        "selectLists": "a.title",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatIndexed": {
+        "selectNames": "",
+        "selectLinks": "",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatJsonPathIndexed": {
+        "selectLinks": "",
+        "selectNames": "",
+        "preferShorterName": true
+      },
+      "channelFormatId": "index-grouped",
+      "selectorChannelFormatFlattened": {
+        "selectChannelNames": "ul.tab_control.play_from > li",
+        "matchChannelName": "",
+        "selectEpisodeLists": "div#play_list > ul.play_list",
+        "selectEpisodesFromList": "li > a",
+        "selectEpisodeLinksFromList": "",
+        "matchEpisodeSortFromName": ""
+      },
+      "selectorChannelFormatNoChannel": {
+        "selectEpisodes": "div#play_list > ul.play_list li > a",
+        "selectEpisodeLinks": "",
+        "matchEpisodeSortFromName": ""
+      },
+      "filterByEpisodeSort": true,
+      "selectMedia": {
+        "distinguishSubjectName": true,
+        "distinguishChannelName": true
+      },
+      "matchVideo": {
+        "enableNestedUrl": true,
+        "matchNestedUrl": "^https?://(?:[^/]+\\.)?hhplayer\\.com/(?:index\\.php)?\\?",
+        "matchVideoUrl": "(?<v>^https?://[^\\s]+\\.m3u8(\\?.*)?$)",
+        "addHeadersToVideo": {
+          "referer": ""
+        }
+      },
+      "defaultResolution": "1080P",
+      "defaultSubtitleLanguage": "CHS"
+    },
+    "tier": 1,
+    "channelTiers": {
+      "线路2": 0,
+      "线路3": 0,
+      "线路1": 1
+    }
+  }
+}
