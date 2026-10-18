@@ -1,0 +1,71 @@
+{
+  "id": "juzi-dongman",
+  "clientVersions": ">=6.3.0",
+  "factoryId": "web-selector",
+  "version": 2,
+  "arguments": {
+    "name": "橘子动漫",
+    "description": "",
+    "iconUrl": "https://r2img.nanoacg.com/favicon.png",
+    "searchConfig": {
+      "searchUrl": "https://www.mgnacg.com/index.php/ajax/suggest?mid=1&wd={keyword}",
+      "searchUseOnlyFirstWord": true,
+      "searchRemoveSpecial": true,
+      "rawBaseUrl": "",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+      "subjectFormatId": "json-path-indexed",
+      "selectorSubjectFormatA": {
+        "selectLists": "",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatIndexed": {
+        "selectNames": "",
+        "selectLinks": "",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatJsonPathIndexed": {
+        "selectLinks": "$.list[*]['id']",
+        "selectNames": "$.list[*]['name']",
+        "linkTemplate": "/media/{value}/",
+        "preferShorterName": true
+      },
+      "channelFormatId": "index-grouped",
+      "selectorChannelFormatFlattened": {
+        "selectChannelNames": ".anthology-tab .swiper-wrapper a",
+        "matchChannelName": "^[\\s\\u00A0]*(?<ch>.+?)(\\d+)?$",
+        "selectEpisodeLists": ".anthology-list-box",
+        "selectEpisodesFromList": "a",
+        "selectEpisodeLinksFromList": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "selectorChannelFormatNoChannel": {
+        "selectEpisodes": ".anthology-list-box a",
+        "selectEpisodeLinks": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "filterByEpisodeSort": true,
+      "selectMedia": {
+        "distinguishSubjectName": true,
+        "distinguishChannelName": true
+      },
+      "matchVideo": {
+        "enableNestedUrl": true,
+        "matchNestedUrl": "^https?://play\\.mknacg\\.top:8585/(?:cloudplay/(?:[a-z0-9]+\\.php)?|muiplayer/(?:[a-z0-9]+\\.php)?)\\?url=",
+        "matchVideoUrl": "(?<v>^https?://[^\\s]+\\.(m3u8|mp4|flv|mkv|mknvideo)(\\?[^\\s]*)?$)",
+        "addHeadersToVideo": {
+          "referer": "https://play.mknacg.top:8585/"
+        }
+      },
+      "defaultResolution": "1080P",
+      "defaultSubtitleLanguage": "CHS"
+    },
+    "tier": 3,
+    "channelTiers": {
+      "存储线路": 0,
+      "Mahoo": 6,
+      "云端线路": 6,
+      "新番线路": 6,
+      "本地线路（已下线）": 6
+    }
+  }
+}
