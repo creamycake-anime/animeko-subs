@@ -29,7 +29,7 @@ def collect_sources(root, only):
         if tier_dir.is_dir():
             for f in sorted(tier_dir.glob("*.json")):
                 # 只发给 6.3.0 以前客户端的配置, 用当前引擎评测没有意义
-                if json.loads(f.read_text()).get("clientVersions") == "<6.3.0":
+                if json.loads(f.read_text(encoding="utf-8")).get("clientVersions") == "<6.3.0":
                     continue
                 if not only or f.stem in only:
                     out.append((tier_dir.name, f))
@@ -56,7 +56,7 @@ def main():
         sid, ep, name = sub["subjectId"], sub["episodeId"], sub["name"]
         rd = report_dir / "subjects" / f"{sid}-{name}"
         rd.joinpath("sources").mkdir(parents=True, exist_ok=True)
-        log_f = open(rd / "driver.log", "a", buffering=1)
+        log_f = open(rd / "driver.log", "a", buffering=1, encoding="utf-8")
 
         def log(m):
             line = f"[{datetime.now().strftime('%H:%M:%S')}] {m}"
@@ -66,7 +66,7 @@ def main():
         server = Mcp(mcp_bin, log)
         server.start()
         summary_path = rd / "summary.json"
-        summary = json.loads(summary_path.read_text()) if summary_path.exists() else []
+        summary = json.loads(summary_path.read_text(encoding="utf-8")) if summary_path.exists() else []
         done = {r["source"] for r in summary}
 
         sources = collect_sources(sources_root, only)
@@ -76,7 +76,7 @@ def main():
             if src in done:
                 continue
             log(f"[{tier}] {src} ...")
-            config = json.loads(f.read_text())
+            config = json.loads(f.read_text(encoding="utf-8"))
             record = {"source": src, "tier": tier, "file": str(f.relative_to(repo_root())),
                       "testedAt": datetime.now(timezone.utc).isoformat(),
                       "subjectId": sid, "episodeId": ep}
@@ -113,7 +113,7 @@ def main():
                 probes.append({"mediaId": r["candidate"]["mediaId"], "channel": media.get("channel"),
                                "videoUrl": rv["url"], "probe": probe, "ffprobe": fprobe})
             record["playerProbes"] = probes
-            (rd / "sources" / f"{tier}-{src}.json").write_text(json.dumps(record, ensure_ascii=False, indent=2))
+            (rd / "sources" / f"{tier}-{src}.json").write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
 
             # 汇总行
             er = resolve.get("extractResults", [])
@@ -159,7 +159,7 @@ def main():
                 "timeToPlayingMillis": bpb.get("timeToPlayingMillis"),
                 "perChannel": per_channel,
             })
-            summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2))
+            summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
             done.add(src)
         server.stop()
         log(f"=== [{name}] 完成: {len(summary)} 源")

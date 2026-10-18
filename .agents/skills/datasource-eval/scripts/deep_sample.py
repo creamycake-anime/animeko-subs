@@ -42,7 +42,7 @@ def usable_sources(report_dir, subject_ids):
         if not sj.exists():
             continue
         sid = d.name.split("-", 1)[0]
-        for r in json.loads(sj.read_text()):
+        for r in json.loads(sj.read_text(encoding="utf-8")):
             if r.get("resolveOk"):
                 per.setdefault(r["source"], {"tier": r["tier"], "sids": set()})["sids"].add(sid)
     out = []
@@ -113,12 +113,12 @@ def backfill_quick_success(report_dir, deep_dir, server, log):
         summary_file = subject_dir / "summary.json"
         if not summary_file.exists():
             continue
-        for row in json.loads(summary_file.read_text()):
+        for row in json.loads(summary_file.read_text(encoding="utf-8")):
             source, tier = row["source"], row["tier"]
             trace_file = subject_dir / "sources" / f"{tier}-{source}.json"
             if not trace_file.exists():
                 continue
-            trace = json.loads(trace_file.read_text())
+            trace = json.loads(trace_file.read_text(encoding="utf-8"))
             quick_probes = [p for p in (trace.get("playerProbes") or [])
                             if playback_ok(p.get("probe"))]
             if not quick_probes:
@@ -127,7 +127,7 @@ def backfill_quick_success(report_dir, deep_dir, server, log):
             src_dir = deep_dir / f"{tier}-{source}"
             deep_file = src_dir / "deep.json"
             if deep_file.exists():
-                record = json.loads(deep_file.read_text())
+                record = json.loads(deep_file.read_text(encoding="utf-8"))
             else:
                 record = {"source": source, "tier": tier,
                           "testedAt": datetime.now(timezone.utc).isoformat(), "runs": []}
@@ -188,7 +188,7 @@ def backfill_quick_success(report_dir, deep_dir, server, log):
                 })
                 added += 1
                 src_dir.mkdir(parents=True, exist_ok=True)
-                deep_file.write_text(json.dumps(record, ensure_ascii=False, indent=2))
+                deep_file.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
                 log(f"  + 帧={len(new_frames)} ok={probe.get('ok')}")
     log(f"=== 快测补采完成: 尝试 {attempted}, 写入 {added}, 28s 补采有帧 {long_ok}")
 
@@ -203,7 +203,7 @@ def main():
 
     deep_dir = report_dir / "deep"
     deep_dir.mkdir(parents=True, exist_ok=True)
-    log_f = open(deep_dir / "deep.log", "a", buffering=1)
+    log_f = open(deep_dir / "deep.log", "a", buffering=1, encoding="utf-8")
 
     def log(m):
         line = f"[{datetime.now().strftime('%H:%M:%S')}] {m}"
@@ -227,7 +227,7 @@ def main():
         cfg = find_config(sources_root, name)
         if not cfg:
             continue
-        config = json.loads(cfg.read_text())
+        config = json.loads(cfg.read_text(encoding="utf-8"))
         record = {"source": name, "tier": tier, "testedAt": datetime.now(timezone.utc).isoformat(), "runs": []}
         log(f"[{tier}] {name}: {[ep_of[s][1] for s in sids]}")
         for sid in sids:  # 该源解析成功过的每部番都深采
@@ -275,7 +275,7 @@ def main():
                                         "probe": probe})
             record["runs"].append(run)
         src_dir.mkdir(parents=True, exist_ok=True)
-        (src_dir / "deep.json").write_text(json.dumps(record, ensure_ascii=False, indent=2))
+        (src_dir / "deep.json").write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
     server.stop()
     log("=== 深采完成")
 

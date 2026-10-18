@@ -18,7 +18,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from lib import pick_bitrate_resolution, playback_ok
 
 BASE = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
-META = json.loads((BASE / "meta.json").read_text()) if (BASE / "meta.json").exists() else {}
+META = json.loads((BASE / "meta.json").read_text(encoding="utf-8")) if (BASE / "meta.json").exists() else {}
 EVAL_DATE = META.get("evalDate", "?")
 SUBJECTS_DIR = BASE / "subjects"
 DEEP_DIR = BASE / "deep"
@@ -63,7 +63,7 @@ def med(xs):
     return round(statistics.median(xs)) if xs else None
 
 
-VERDICTS = json.loads(VERDICTS_FILE.read_text()).get("_channel_level", {}) if VERDICTS_FILE.exists() else {}
+VERDICTS = json.loads(VERDICTS_FILE.read_text(encoding="utf-8")).get("_channel_level", {}) if VERDICTS_FILE.exists() else {}
 
 
 def visual_ad(source, channel):
@@ -78,14 +78,14 @@ def load_subjects():
         if sj.exists():
             sid = d.name.split("-", 1)[0]
             out[sid] = {"dir": d, "name": d.name.split("-", 1)[-1],
-                        "rows": {r["source"]: r for r in json.loads(sj.read_text())}}
+                        "rows": {r["source"]: r for r in json.loads(sj.read_text(encoding="utf-8"))}}
     return out
 
 
 def load_deep():
     out = {}
     for dj in DEEP_DIR.glob("*/deep.json"):
-        rec = json.loads(dj.read_text())
+        rec = json.loads(dj.read_text(encoding="utf-8"))
         out[rec["source"]] = rec
     return out
 
@@ -155,7 +155,7 @@ def load_source_trace(subject_dir, tier, source):
     if not f.exists():
         return None
     try:
-        return json.loads(f.read_text())
+        return json.loads(f.read_text(encoding="utf-8"))
     except Exception:
         return None
 
@@ -555,7 +555,7 @@ def channel_report(source, tier, cname, c, subjects, deep):
             mark, reason = "— 未出现", "该番未解析到此线路"
         md.append(f"| {sd['name']} | {mark} | {reason} |")
 
-    fp.write_text("\n".join(md))
+    fp.write_text("\n".join(md), encoding="utf-8")
     return fname, st
 
 
@@ -608,7 +608,7 @@ def source_report(source, tier, a, subjects, ch_reports):
     for sid, sd in subjects.items():
         mark = "✅" if a["perSubject"].get(sid) else ("❌" if sid in a["perSubject"] else "— 未测")
         md.append(f"| {sd['name']} | {mark} |")
-    fp.write_text("\n".join(md))
+    fp.write_text("\n".join(md), encoding="utf-8")
     return f"{tier}-{slug(source)}.md"
 
 
@@ -756,7 +756,7 @@ def main():
     for s, tier, stage, reason in sorted(other_fail, key=lambda x: (x[2], x[1], x[0])):
         md.append(f"| {s} | {tier} | {stage} | {reason} |")
 
-    (BASE / "README.md").write_text("\n".join(md))
+    (BASE / "README.md").write_text("\n".join(md), encoding="utf-8")
     print(f"生成: {len(src_pages)} 源页, {len(list(CH_DIR.glob('*.md')))} 线路报告, "
           f"{len(recs)} 条推荐线路, README.md")
 
