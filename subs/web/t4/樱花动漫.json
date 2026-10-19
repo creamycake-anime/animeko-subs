@@ -62,9 +62,7 @@
     },
     "tier": 4,
     "channelTiers": {
-      "Bfeng": 0,
-      "Diff": 1,
-      "Laoz": 1
+      "Diff": 3
     }
   }
 }
