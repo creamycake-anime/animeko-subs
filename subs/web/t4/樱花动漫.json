@@ -5,20 +5,21 @@
   "arguments": {
     "name": "樱花动漫",
     "description": "",
-    "iconUrl": "https://www.yinghua2.com/statics/img/favicon.ico",
+    "iconUrl": "https://cdn.l-il.cn/ajax/lucky/mxpro/images/favicon.png",
     "searchConfig": {
-      "searchUrl": "https://www.yinghua2.com/index.php/vod/search.html?wd={keyword}",
+      "searchUrl": "https://www.yinhuadm.cc/vch/{keyword}.html",
       "searchUseOnlyFirstWord": true,
       "searchRemoveSpecial": true,
       "rawBaseUrl": "",
+      "requestInterval": 3000,
       "subjectFormatId": "a",
       "selectorSubjectFormatA": {
-        "selectLists": ".title > a",
+        "selectLists": ".module-card-item-title > a",
         "preferShorterName": true
       },
       "selectorSubjectFormatIndexed": {
-        "selectNames": ".search-box .thumb-content > .thumb-txt",
-        "selectLinks": ".search-box .thumb-menu > a",
+        "selectNames": "",
+        "selectLinks": "",
         "preferShorterName": true
       },
       "selectorSubjectFormatJsonPathIndexed": {
@@ -28,18 +29,21 @@
       },
       "channelFormatId": "index-grouped",
       "selectorChannelFormatFlattened": {
-        "selectChannelNames": ".playlist  .stui-pannel__head > h3.title",
-        "matchChannelName": "",
-        "selectEpisodeLists": ".stui-content__playlist",
-        "selectEpisodesFromList": "a",
+        "selectChannelNames": ".module-tab-item.tab-item",
+        "matchChannelName": "(?<ch>.+?)(\\d+?)",
+        "selectEpisodeLists": ".module-play-list-content",
+        "selectEpisodesFromList": "a.module-play-list-link",
         "selectEpisodeLinksFromList": "",
         "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
       },
       "selectorChannelFormatNoChannel": {
-        "selectEpisodes": "#glist-1 > div.module-blocklist.scroll-box.scroll-box-y > div > a",
+        "selectEpisodes": ".module-play-list-content a.module-play-list-link",
         "selectEpisodeLinks": "",
         "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
       },
+      "defaultResolution": "1080P",
+      "defaultSubtitleLanguage": "CHS",
+      "onlySupportsPlayers": [],
       "filterByEpisodeSort": true,
       "filterBySubjectName": true,
       "selectMedia": {
@@ -48,28 +52,17 @@
       },
       "matchVideo": {
         "enableNestedUrl": true,
-        "matchNestedUrl": "^.+(m3u8|vip|xigua\\.php).+\\?",
-        "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http(s)?:\\/\\/).+((\\.mp4)|(\\.mkv)|(m3u8)).*(\\?.+)?)|(akamaized)|(bilivideo.com)|(.+\\?url=(?<v>.+))",
-        "cookies": "quality=1080",
+        "matchNestedUrl": "^https?://player\\.mcue\\.cc/.+",
+        "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http(s)?:\\/\\/).+((\\.mp4)|(\\.mkv)|(\\.m3u8)).*(\\?.+)?)|(akamaized)|(bilivideo.com)|(.+\\?url=(?<v>.+(playlist\\.m3u8|\\.mp4|\\.mkv)))",
         "addHeadersToVideo": {
-          "referer": "",
-          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+          "referer": "https://player.mcue.cc/",
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
         }
       }
     },
     "tier": 4,
     "channelTiers": {
-      "线路10": 1,
-      "线路6": 1,
-      "5线": 2,
-      "线路1": 2,
-      "线路12": 5,
-      "线路2": 5,
-      "线路3": 5,
-      "线路8": 5,
-      "主线": 6,
-      "线路4": 6,
-      "线路9": 6
+      "Diff": 3
     }
   }
 }
