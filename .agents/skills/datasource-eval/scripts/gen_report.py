@@ -6,6 +6,7 @@
   subjects/<id>-<名>/sources/*.json     逐源 trace (每线路 resolve/probe 成功失败 + 错误原因)
   deep/<tier>-<源>/deep.json            深采: 长播多点截图 + 播放性能 + adDetect 结构探测 + ffprobe
   combined/frames_verdicts.json         视觉广告标注 (subagent 逐张看图)
+  summary 行的 entry / unlisted          评测用的站内条目 (pick_entries.py 选定); unlisted = 该站未收录, 显示 ⊘
 """
 import json
 import os
@@ -15,7 +16,7 @@ import statistics
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lib import pick_bitrate_resolution, playback_ok
+from lib import pick_bitrate_resolution, playback_ok, startup_millis
 
 BASE = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
 META = json.loads((BASE / "meta.json").read_text(encoding="utf-8")) if (BASE / "meta.json").exists() else {}
@@ -63,7 +64,34 @@ def med(xs):
     return round(statistics.median(xs)) if xs else None
 
 
+def pctl(xs, p):
+    """线性插值分位数 (与 numpy 默认一致). 空列表返回 None."""
+    xs = sorted(x for x in xs if x is not None)
+    if not xs:
+        return None
+    k = (len(xs) - 1) * p / 100
+    f = int(k)
+    c = min(f + 1, len(xs) - 1)
+    return round(xs[f] + (xs[c] - xs[f]) * (k - f))
+
+
+def bitrate_dist_rows(stats):
+    """码率分布表的行: (样本名, 值列表). 快测 = run_eval 的 10s 拷贝, 深采 = deep_sample 的 30s 拷贝."""
+    rows = []
+    if stats["br_quick"]:
+        rows.append(("快测 10s", stats["br_quick"]))
+    if stats["br_deep"]:
+        rows.append(("深采 30s", stats["br_deep"]))
+    if len(rows) > 1:
+        rows.append(("合并", stats["br_quick"] + stats["br_deep"]))
+    return rows
+
+
 VERDICTS = json.loads(VERDICTS_FILE.read_text(encoding="utf-8")).get("_channel_level", {}) if VERDICTS_FILE.exists() else {}
+
+# 源 -> 未收录的 sid 集合 (summary 行 unlisted=true); (源, sid) -> 评测用的站内条目 (summary 行 entry)
+UNLISTED = {}
+ENTRY_OF = {}
 
 
 def visual_ad(source, channel):
@@ -77,9 +105,28 @@ def load_subjects():
         sj = d / "summary.json"
         if sj.exists():
             sid = d.name.split("-", 1)[0]
-            out[sid] = {"dir": d, "name": d.name.split("-", 1)[-1],
-                        "rows": {r["source"]: r for r in json.loads(sj.read_text(encoding="utf-8"))}}
+            rows = {r["source"]: r for r in json.loads(sj.read_text(encoding="utf-8"))}
+            for src, r in rows.items():
+                if r.get("unlisted"):
+                    UNLISTED.setdefault(src, set()).add(sid)
+                if r.get("entry"):
+                    ENTRY_OF[(src, sid)] = r["entry"]
+            out[sid] = {"dir": d, "name": d.name.split("-", 1)[-1], "rows": rows}
     return out
+
+
+def entry_s(source, sid):
+    """评测用的站内条目 (名字, 多个用 / 连接); 旧报告没有记录时为 '-'."""
+    e = ENTRY_OF.get((source, sid))
+    if not e:
+        return "-"
+    if e.get("status") == "unlisted":
+        return "⊘ 未收录"
+    if e.get("status") == "search_failed":
+        return "(搜索失败)"
+    name = e.get("name") or "-"
+    urls = e.get("urls") or ([e["url"]] if e.get("url") else [])
+    return f"[{name}]({urls[0]})" if urls else name
 
 
 def load_deep():
@@ -98,14 +145,17 @@ def disp_ch(cname):
     return cname if cname else "默认线路"
 
 
-def per_subject_cells(st, sids):
-    """每部番一格: ✅可播 / ❌失败 / — 未出现."""
+def per_subject_cells(st, sids, source=None):
+    """每部番一格: ✅可播 / ❌失败 / ⊘ 该站未收录 / — 未出现."""
     out = []
+    unlisted = UNLISTED.get(source, set())
     for sid in sids:
         if sid in st["ok_sids"]:
             out.append("✅")
         elif sid in st["appear_sids"]:
             out.append("❌")
+        elif sid in unlisted:
+            out.append("⊘")
         else:
             out.append("—")
     return out
@@ -195,8 +245,12 @@ def classify_step_fail(step):
 def dead_reason(source, tier, subjects):
     """跨番聚合全失败源的失败阶段与原因, 取最常见."""
     from collections import Counter
+    if len(UNLISTED.get(source, ())) >= len(subjects):
+        return ("收录", "测试番剧全部未收录(换番剧再验证, 不代表源失效)")
     counter = Counter()
-    for sd in subjects.values():
+    for sid, sd in subjects.items():
+        if sid in UNLISTED.get(source, ()):
+            continue  # 未收录不是失败, 不参与失败原因统计
         trace = load_source_trace(sd["dir"], tier, source)
         if not trace:
             continue
@@ -236,7 +290,8 @@ def aggregate(subjects, deep):
 
         def ch_entry(cname):
             return channels.setdefault(cname, {
-                "res": [], "brs": [], "ttp": [], "codecs": [], "ok_subjects": set(),
+                "res": [], "brs": [], "brs_quick": [], "brs_deep": [], "br_by_sid": {},
+                "ttp": [], "codecs": [], "ok_subjects": set(),
                 "appear": set(), "fails": [], "adsusp": [],
             })
 
@@ -245,6 +300,8 @@ def aggregate(subjects, deep):
             row = sd["rows"].get(source)
             if not row:
                 continue
+            if row.get("unlisted"):
+                continue  # 该站未收录这部番: 不算尝试, 番格显示 ⊘
             attempted += 1
             attempted_sids.add(sid)
             trace = load_source_trace(sd["dir"], tier, source)
@@ -259,10 +316,12 @@ def aggregate(subjects, deep):
                     c["res"].append(ch["resolution"])
                 if ch.get("bitrate"):
                     c["brs"].append(ch["bitrate"])
+                    c["brs_quick"].append(ch["bitrate"])
+                    c["br_by_sid"].setdefault(sid, {})["quick"] = ch["bitrate"]
                 if ch.get("codec"):
                     c["codecs"].append(ch["codec"])
-                if ch.get("timeToPlayingMillis"):
-                    c["ttp"].append(ch["timeToPlayingMillis"])
+                if trace is None and ch.get("playerOk") and ch.get("startupMillis") is not None:
+                    c["ttp"].append(ch["startupMillis"])  # 缺 trace 的旧数据才退回 summary 字段
                 if ch.get("adSuspicion"):
                     c["adsusp"].append(ch["adSuspicion"])
             # trace: 每线路 成功/失败/错误原因
@@ -279,6 +338,10 @@ def aggregate(subjects, deep):
                     probe = p.get("probe") or {}
                     if playback_ok(probe):
                         c["ok_subjects"].add(sid)
+                        # 起播 = 打开媒体到画面首次前进 (open + resume→首帧), 见 lib.startup_millis
+                        su = startup_millis((probe.get("mediaAnalysis") or {}).get("playback"))
+                        if su is not None:
+                            c["ttp"].append(su)
                     else:
                         c["fails"].append((sd["name"], summarize_probe_fail(probe)))
                 for r in resolve.get("extractResults", []):
@@ -306,11 +369,14 @@ def aggregate(subjects, deep):
                     c["res"].append(res)
                 if br:
                     c["brs"].append(br)
+                    c["brs_deep"].append(br)
+                    c["br_by_sid"].setdefault(rsid, {})["deep"] = br
                 codec = v.get("codec") or ((dc.get("ffprobe") or {}).get("streams") or {}).get("vcodec")
                 if codec:
                     c["codecs"].append(codec)
-                if pb.get("timeToPlayingMillis"):
-                    c["ttp"].append(pb["timeToPlayingMillis"])
+                su = startup_millis(pb)
+                if su is not None and playback_ok(dc.get("probe")):
+                    c["ttp"].append(su)
 
         # 源级和番格成功率同样只认真实播放器成功（快测或 deep 任一成功即可）。
         # 番格三态: 只对真实尝试过的番记 ✅/❌; 未尝试 (断点续跑局部数据) 不进 perSubject, 渲染为 —。
@@ -359,7 +425,9 @@ def channel_stats(source, cname, c, n_subjects):
     reasons = [r for _, r in c["fails"]]
     top_reason = max(set(reasons), key=reasons.count) if reasons else None
     return {"ad_rank": ad_rank, "ad_note": ad_note, "ok_n": ok_n, "res": res,
-            "br": br, "ttp": ttp, "codec": codec, "fails": c["fails"],
+            "br": br, "br_p10": pctl(c["brs"], 10), "br_p90": pctl(c["brs"], 90),
+            "br_quick": list(c["brs_quick"]), "br_deep": list(c["brs_deep"]), "br_by_sid": dict(c["br_by_sid"]),
+            "ttp": ttp, "codec": codec, "fails": c["fails"],
             "top_reason": top_reason, "appear": len(c["appear"]),
             "ok_sids": set(c["ok_subjects"]), "appear_sids": set(c["appear"])}
 
@@ -533,10 +601,30 @@ def channel_report(source, tier, cname, c, subjects, deep):
         fps = v.get("frameRate") or fst.get("fps") or "?"
         md.append(f"| {res or '?'} | {codec} | {fps}fps | "
                   f"{a.get('codec')} {a.get('sampleRate')}Hz {a.get('channels')}ch | {durs} | {brs} | {src_label} |")
+        dist = bitrate_dist_rows(st)
+        if dist:
+            md.append("\n## 码率分布\n")
+            md.append("ffprobe `-c copy` 拷贝实测的平均码率 (快测取每集开头 10s, 深采取 30s), 跨番汇总; "
+                      "总表与分级用的是「合并」行的中位数 (P50).\n")
+            md.append("| 样本 | n | P10 | P25 | P50 | P75 | P90 | min | max |")
+            md.append("|---|---|---|---|---|---|---|---|---|")
+            for label, xs in dist:
+                md.append(f"| {label} | {len(xs)} | " + " | ".join(br_s(pctl(xs, p)) for p in (10, 25, 50, 75, 90)) +
+                          f" | {br_s(min(xs))} | {br_s(max(xs))} |")
+            per = []
+            for sid, sd in subjects.items():
+                b = st["br_by_sid"].get(sid)
+                if b:
+                    per.append(f"{sd['name']} {br_s(b.get('quick'))} / {br_s(b.get('deep'))}")
+            if per:
+                md.append("\n每部番 (快测 / 深采): " + " · ".join(per) + "\n")
+
         md.append("\n## 播放性能\n")
-        md.append("| 打开 | 起播 | 首帧 | 卡顿 |")
+        md.append("起播 = 从打开媒体到画面首次前进 (含拉取清单/分片与解首帧). mpv 在打开阶段就完成缓冲, "
+                  "resume 后位置几乎立刻前进, 所以「resume→首帧」恒为几毫秒, 单独看没有意义.\n")
+        md.append("| 打开媒体 | **起播** | resume→首帧 | 卡顿 |")
         md.append("|---|---|---|---|")
-        md.append(f"| {pb.get('openMillis')}ms | {pb.get('timeToPlayingMillis')}ms | "
+        md.append(f"| {pb.get('openMillis')}ms | **{startup_millis(pb)}ms** | "
                   f"{pb.get('timeToFirstFrameMillis')}ms | {pb.get('bufferingCount')} 次 |")
 
     # 跨番实播 + 失败原因 (与聚合同口径: 快测或 deep/backfill 任一实播成功即 ✅)
@@ -551,6 +639,8 @@ def channel_report(source, tier, cname, c, subjects, deep):
             mark, reason = "❌ 失败", fail_by_subj[sd["name"]]
         elif sid in st["appear_sids"]:
             mark, reason = "❌ 失败", "实播未成功(无具体原因记录)"
+        elif sid in UNLISTED.get(source, ()):
+            mark, reason = "⊘ 未收录", "该站没有这部番的条目"
         else:
             mark, reason = "— 未出现", "该番未解析到此线路"
         md.append(f"| {sd['name']} | {mark} | {reason} |")
@@ -598,16 +688,20 @@ def source_report(source, tier, a, subjects, ch_reports):
         star = "⭐ " if best and cn == best["channel"] else ""
         adcell = AD_SHORT[s["ad_rank"]]
         reason = s["top_reason"] if (s["ok_n"] < len(subjects) and s["top_reason"]) else ""
-        cells = " | ".join(per_subject_cells(s, sids))
+        cells = " | ".join(per_subject_cells(s, sids, source))
         md.append(f"| {star}{disp_ch(cn)} | {adcell} | {res_s(s['res'])} | {br_s(s['br'])} | {ttp_s(s['ttp'])} | "
                   f"{cells} | {reason} | [详情](../channels/{info['fname']}) |")
 
     md.append("\n## 跨番解析\n")
-    md.append("| 番剧 | 整体解析 |")
-    md.append("|---|---|")
+    md.append("评测只解析 agent 选定的站内条目 (entries/picks.json), 不吃引擎模糊匹配的顺序; ⊘ = 该站未收录.\n")
+    md.append("| 番剧 | 评测条目 | 整体解析 |")
+    md.append("|---|---|---|")
     for sid, sd in subjects.items():
-        mark = "✅" if a["perSubject"].get(sid) else ("❌" if sid in a["perSubject"] else "— 未测")
-        md.append(f"| {sd['name']} | {mark} |")
+        if sid in UNLISTED.get(source, ()):
+            mark = "⊘ 未收录"
+        else:
+            mark = "✅" if a["perSubject"].get(sid) else ("❌" if sid in a["perSubject"] else "— 未测")
+        md.append(f"| {sd['name']} | {entry_s(source, sid)} | {mark} |")
     fp.write_text("\n".join(md), encoding="utf-8")
     return f"{tier}-{slug(source)}.md"
 
@@ -638,17 +732,25 @@ def main():
         src_pages[source] = source_report(source, a["tier"], a, subjects, ch_reports)
 
     usable = [(s, a) for s, a in agg.items() if a["okNum"] > 0]
-    dead = sorted(f"{s}({a['tier']})" for s, a in agg.items() if a["okNum"] == 0)
+    dead = sorted(f"{s}({a['tier']})" for s, a in agg.items() if a["attempted"] and a["okNum"] == 0)
+    unlisted_sources = sorted(s for s, a in agg.items() if not a["attempted"])
 
     md = ["# ani-subs CSS Selector 数据源评估报告\n"]
-    md.append(f"**评测日期: {EVAL_DATE}**\n")
+    md.append(f"**评测日期: {EVAL_DATE}**" + (f" · **评测出口: {META['egress']}**" if META.get("egress") else "") + "\n")
+    if META.get("egress"):
+        md.append("> 可播性是从上述网络出口实测的结论; 盗版 CDN 常按客户端 IP 地区放行或 404, "
+                  "换地区结果可能不同. 本报告里的 ❌ 只表示「从该出口不可播」, 不能单独证明线路已失效.\n")
     md.append(f"跨 **{n}** 部番剧 × **{len(agg)}** 个源. "
-              "每源全流程解析 + 每条线路用 Animeko 桌面播放器 (mpv) 实播 + ffprobe 实测码率 "
-              "+ HLS 结构广告探测 (真实客户端过滤器) + 多点截图 + subagent 逐张看图判广告.\n")
+              "每源先列出搜索结果、由 agent 选定正确的站内条目 (不吃引擎模糊匹配的顺序), "
+              "再全流程解析 + 每条线路用 Animeko 桌面播放器 (mpv) 实播 + ffprobe 实测码率 "
+              "+ HLS 结构广告探测 (真实客户端过滤器) + 多点截图 + subagent 逐张看图判广告. "
+              "番格 ⊘ = 该站未收录这部番 (不计入成功率).\n")
     md.append("\n测试番剧: " + ", ".join(sd["name"] for sd in subjects.values()) + "\n")
     md.append(f"\n**{len([1 for _,a in usable if a['okNum']==a['attempted']])}** 个稳定可用 · "
               f"**{len([1 for _,a in usable if 0<a['okNum']<a['attempted']])}** 个部分可用 · "
-              f"**{len(dead)}** 个全部失败\n")
+              f"**{len(dead)}** 个全部失败 · **{len(unlisted_sources)}** 个测试番剧均未收录\n")
+    if unlisted_sources:
+        md.append("未收录测试番剧的源: " + "、".join(unlisted_sources) + " (不计入失败, 需换番剧验证).\n")
 
     # 推荐榜: 每个源挑一条最佳线路 (无广告 + 有实测数据 + 成功番多 + 画质好 + 码率高 + 起播快)
     best_per_source = {}
@@ -675,26 +777,28 @@ def main():
     # 能力分级表: 每条实测线路一行, 按 T0-T5 硬指标分级
     md.append("\n## 📶 线路能力分级 (Tier)\n")
     md.append("每条线路按实测硬指标分级 (与 subs/web 的 t0–t4 **目录**分层无关). "
-              "无广告只认视觉判定, 未判定不算无广告; 缺数据视为不满足:\n")
+              "无广告只认视觉判定, 未判定不算无广告; 缺数据视为不满足. "
+              "码率 = 跨番实测中位数, P10–P90 列给出分布 (完整分位数表见线路页):\n")
     md.append("> **T0** 无广告·1080P·码率≥1.8M·起播≤3s (该源查询成功即可直接选择, 无需等待其他源) · "
               "**T1** 无广告·1080P·≥1.5M·≤5s · **T2** 无广告·1080P·≥1.2M·≤5s · "
               "**T3** 1080P·(≤轻广告·≥1.5M·≤8s 或 无广告·≥1.0M·≤8s) · "
               "**T4** ≤轻广告·1080P·≥1.0M·≤8s · **T5** 1080P·≥1.0M · **T6** 无要求. "
               "重度广告 (全程水印/滤不掉的插入广告) 必须落在 T5 及之后.\n")
-    md.append("| 源(线路) | Tier | 分辨率 | 码率 | 编码 | 起播 | 广告 | " + " | ".join(subj_short) + " |")
-    md.append("|---|---|---|---|---|---|---|" + "---|" * n)
+    md.append("| 源(线路) | Tier | 分辨率 | 码率 | 码率 P10–P90 | 编码 | 起播 | 广告 | " + " | ".join(subj_short) + " |")
+    md.append("|---|---|---|---|---|---|---|---|" + "---|" * n)
     tiered = sorted(all_channel_stats,
                     key=lambda x: (capability_tier(x[3]), -x[3]["ok_n"]) + channel_rank_key(x[3]) + (x[0],))
     for source, tier, cname, st, fname in tiered:
-        cells = " | ".join(per_subject_cells(st, sids))
+        cells = " | ".join(per_subject_cells(st, sids, source))
+        br_range = f"{br_s(st['br_p10'])}–{br_s(st['br_p90'])}" if st["br_p10"] else "-"
         md.append(f"| [{source}({disp_ch(cname)})](channels/{fname}) | **{capability_tier(st)}** | "
-                  f"{res_s(st['res'])} | {br_s(st['br'])} | {st['codec'] or '-'} | {ttp_s(st['ttp'])} | "
+                  f"{res_s(st['res'])} | {br_s(st['br'])} | {br_range} | {st['codec'] or '-'} | {ttp_s(st['ttp'])} | "
                   f"{AD_SHORT[st['ad_rank']]} | {cells} |")
 
     md.append("\n## 全部可用源 (按广告轻重 → 成功率)\n")
-    md.append("| 源 | Tier | 成功率 | 最佳线路 | 分辨率 | 码率 | 起播 | 广告 | " +
+    md.append("| 源 | Tier | 收录 | 成功率 | 最佳线路 | 分辨率 | 码率 | 起播 | 广告 | " +
               " | ".join(sd["name"][:2] for sd in subjects.values()) + " |")
-    md.append("|---|---|---|---|---|---|---|---|" + "---|" * n)
+    md.append("|---|---|---|---|---|---|---|---|---|" + "---|" * n)
     for s, a in sorted(usable, key=lambda x: (x[1]["adClean"] if x[1]["adClean"] >= 0 else 9,
                                               -x[1]["okNum"], x[1]["tier"])):
         b = a["best"]
@@ -702,18 +806,21 @@ def main():
         bname = disp_ch(b["channel"]) if b else "-"
         adtxt = AD_SHORT[a["adClean"]] + ("*" if a["adWorst"] > a["adClean"] else "")
         cells = " | ".join(
-            "✅" if a["perSubject"].get(sid) else ("❌" if sid in a["perSubject"] else "—")
+            "✅" if a["perSubject"].get(sid) else
+            ("❌" if sid in a["perSubject"] else ("⊘" if sid in UNLISTED.get(s, ()) else "—"))
             for sid in sids)
-        md.append(f"| [{s}](sources/{src_pages[s]}) | {a['tier']} | {a['okNum']}/{a['attempted']} | "
+        md.append(f"| [{s}](sources/{src_pages[s]}) | {a['tier']} | {a['attempted']}/{n} | {a['okNum']}/{a['attempted']} | "
                   f"{bname} | {res_s(bst['res']) if bst else '-'} | {br_s(bst['br']) if bst else '-'} | "
                   f"{ttp_s(bst['ttp']) if bst else '-'} | {adtxt} | {cells} |")
-    md.append("\n> 分辨率/码率/起播 = 该源**最佳线路**的实测值 (最佳线路排序: ①无广告(视觉判定, 未判定排最后) "
+    md.append("\n> 起播 = mpv 从打开媒体到画面首次前进的耗时 (含拉取清单/分片与解首帧), 跨番中位数. "
+              "收录 = 该站有条目的番数/测试番数 (⊘ 未收录不计入成功率). "
+              "分辨率/码率/起播 = 该源**最佳线路**的实测值 (最佳线路排序: ①无广告(视觉判定, 未判定排最后) "
               "②分辨率 ③码率 ④起播; 只在实播成功过的线路中选; 分辨率取跨番众数, 码率/起播取中位数). "
               "广告列: 最干净可选线路等级; `*` 表示该源另有更脏线路.\n")
 
     # 各源线路拆解 (直接嵌入 README, 无需点进源页)
     md.append("\n## 各源线路拆解\n")
-    md.append("每个源逐条线路 × 每部番实播: ✅可播 / ❌失败 / — 该番未解析到此线路. "
+    md.append("每个源逐条线路 × 每部番实播: ✅可播 / ❌失败 / ⊘ 该站未收录 / — 该番未解析到此线路. "
               "广告 / 分辨率 / 码率 / 起播 / 失败原因. ⭐ = 总表所用最佳线路.\n")
     by_source = {}
     for source, tier, cname, st, fname in all_channel_stats:
@@ -731,12 +838,12 @@ def main():
                                        x[1]["ad_rank"] if x[1]["ad_rank"] >= 0 else 9, str(x[0]))):
             star = "⭐ " if a["best"] and cname == a["best"]["channel"] else ""
             reason = st["top_reason"] if (st["ok_n"] < n and st["top_reason"]) else ""
-            cells = " | ".join(per_subject_cells(st, sids))
+            cells = " | ".join(per_subject_cells(st, sids, s))
             md.append(f"| {star}[{disp_ch(cname)}](channels/{fname}) | {AD_SHORT[st['ad_rank']]} | "
                       f"{res_s(st['res'])} | {br_s(st['br'])} | {ttp_s(st['ttp'])} | {cells} | {reason} |")
 
     # 全失败源: 逐个分析失败阶段与原因
-    dead_sources = sorted(((s, a["tier"]) for s, a in agg.items() if a["okNum"] == 0),
+    dead_sources = sorted(((s, a["tier"]) for s, a in agg.items() if a["attempted"] and a["okNum"] == 0),
                           key=lambda x: (x[1], x[0]))
     analyzed = [(s, tier, *dead_reason(s, tier, subjects)) for s, tier in dead_sources]
     search_fail = [x for x in analyzed if x[2] == "搜索"]

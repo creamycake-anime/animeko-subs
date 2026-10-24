@@ -3,6 +3,10 @@
 跑全流程解析 (all_channels) + **每条 resolved 线路**全量 mpv 实播 (采集可播性/起播)
 + ffprobe 实测分辨率/码率 (bitrateSource 标注来源) + HLS 过滤器结论 (adFilter).
 
+只解析 entries/picks.json 里选定的站内条目 (先跑 pick_entries.py, 由 agent 选定正确条目):
+引擎自动匹配是「包含 / 80% 相似」, 会把续季 / 剧场版 / 总集篇当成候选, 评测不吃这个顺序.
+选条目结论为 unlisted (该站未收录) 的 源×番 不发请求, summary 记 unlisted, 报告显示 ⊘.
+
 用法: python3 run_eval.py <report_dir> [只跑指定源名...]
 读 <report_dir>/meta.json: {evalDate, subjects:[{subjectId, episodeId, name}], mcpBin?}
 产物: <report_dir>/subjects/<subjectId>-<name>/{sources/*.json, frames/, summary.json, driver.log}
@@ -16,24 +20,11 @@ import time
 from datetime import datetime, timezone
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lib import (Mcp, ffprobe_all, load_meta, pick_bitrate_resolution, playback_ok,
-                 repo_root, require_mcp_bin, require_player_available,
-                 resolve_sources_root, safe_dir)
+from lib import (Mcp, collect_sources, ffprobe_all, load_meta, pick_bitrate_resolution, pick_for,
+                 playback_ok, repo_root, require_mcp_bin, require_picks, require_player_available,
+                 resolve_sources_root, safe_dir, startup_millis)
 
 MAX_CANDIDATES = 100  # 实际上不设限: 每条线路都要解析并实播
-
-
-def collect_sources(root, only):
-    out = []
-    for tier_dir in sorted(root.iterdir()):
-        if tier_dir.is_dir():
-            for f in sorted(tier_dir.glob("*.json")):
-                # 只发给 6.3.0 以前客户端的配置, 用当前引擎评测没有意义
-                if json.loads(f.read_text(encoding="utf-8")).get("clientVersions") == "<6.3.0":
-                    continue
-                if not only or f.stem in only:
-                    out.append((tier_dir.name, f))
-    return out
 
 
 def stage_timings(resolve):
@@ -51,6 +42,8 @@ def main():
     mcp_bin = require_mcp_bin(meta)
     subjects = meta["subjects"]
     sources_root = resolve_sources_root(report_dir, meta)
+    all_sources = collect_sources(sources_root, only)
+    picks = require_picks(report_dir, [f.stem for _, f in all_sources], [s["subjectId"] for s in subjects])
 
     for sub in subjects:
         sid, ep, name = sub["subjectId"], sub["episodeId"], sub["name"]
@@ -75,20 +68,39 @@ def main():
             src = f.stem
             if src in done:
                 continue
-            log(f"[{tier}] {src} ...")
             config = json.loads(f.read_text(encoding="utf-8"))
+            pick = pick_for(picks, src, sid)
+            entry = {"status": pick["status"], "name": pick.get("name"), "url": pick.get("url"),
+                     "urls": pick.get("urls") or ([pick["url"]] if pick.get("url") else []),
+                     "note": pick.get("note")}
             record = {"source": src, "tier": tier, "file": str(f.relative_to(repo_root())),
                       "testedAt": datetime.now(timezone.utc).isoformat(),
-                      "subjectId": sid, "episodeId": ep}
+                      "subjectId": sid, "episodeId": ep, "entry": entry}
+            if pick["status"] == "unlisted":
+                # 该站未收录这部番: 不发请求, 不算失败也不算成功 (报告显示 ⊘)
+                log(f"[{tier}] {src} ⊘ 未收录 ({pick.get('note') or ''})")
+                (rd / "sources" / f"{tier}-{src}.json").write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
+                summary.append({"source": src, "tier": tier, "unlisted": True, "entry": entry,
+                                "configValid": None, "resolveOk": None, "resolveSummary": "站点未收录",
+                                "mediasFound": 0, "channelsResolved": [], "channelsFailed": [],
+                                "perChannel": []})
+                summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+                done.add(src)
+                continue
+            log(f"[{tier}] {src} ... 条目: {pick.get('name') or '(自动匹配, 搜索曾失败)'}")
             record["validate"] = server.call("validate_selector_config", {"config": config}, 120)
-            resolve = server.call("selector_resolve_episode", {
+            resolve_args = {
                 "subjectId": sid, "episodeId": ep, "config": config,
                 # selector 只负责保留全部最终 URL；内部 HTTP probe 冗余且不作为可播依据。
                 # 每条 resolved URL 在下方统一交给 probe_video 做 Animeko mpv 实播。
                 "extractVideo": True, "probeVideo": False, "extractMode": "all_channels",
                 "maxCandidatesToExtract": MAX_CANDIDATES, "maxSubjectsPerName": 2,
                 "probeTimeoutMillis": 12000,
-            }, 20 * 60)
+            }
+            if entry["urls"]:
+                # 只展开 agent 选定的条目 (search_failed 的源没有条目, 照常跑以记录搜索失败原因)
+                resolve_args["subjectUrls"] = entry["urls"]
+            resolve = server.call("selector_resolve_episode", resolve_args, 20 * 60)
             record["resolve"] = resolve
             log(f"  resolve ok={resolve.get('ok')} | {str(resolve.get('summary') or resolve.get('_error'))[:90]}")
 
@@ -137,6 +149,9 @@ def main():
                     "adSuspicion": ad.get("suspicion"),
                     # 真实客户端 HLS 广告过滤器结论 (filterable/removedGroups), 供报告与判定用
                     "adFilter": ad.get("hlsFilter"),
+                    # 起播 = 打开媒体到画面首次前进 (open + resume→首帧); timeToPlayingMillis 单独看恒为几毫秒
+                    "startupMillis": startup_millis(pb),
+                    "openMillis": pb.get("openMillis"),
                     "timeToPlayingMillis": pb.get("timeToPlayingMillis"),
                 })
             # 行级快照 (首条可播线路), 仅供人肉翻 summary.json; 报告总表的"最佳线路"由 gen_report 按
@@ -146,7 +161,7 @@ def main():
             bpb = bma.get("playback") or {}
             bbr, bbr_src, bres = pick_bitrate_resolution((best or {}).get("ffprobe"), bma)
             summary.append({
-                "source": src, "tier": tier,
+                "source": src, "tier": tier, "entry": entry,
                 "configValid": (record["validate"] or {}).get("ok"),
                 "resolveOk": resolve.get("ok"),
                 "resolveSummary": resolve.get("summary") or resolve.get("_error"),
@@ -156,6 +171,7 @@ def main():
                 "totalResolveMillis": resolve.get("totalDurationMillis"),
                 "resolution": bres,
                 "bitrate": bbr, "bitrateSource": bbr_src,
+                "startupMillis": startup_millis(bpb),
                 "timeToPlayingMillis": bpb.get("timeToPlayingMillis"),
                 "perChannel": per_channel,
             })

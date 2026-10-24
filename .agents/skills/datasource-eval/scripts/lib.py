@@ -81,6 +81,74 @@ def resolve_sources_root(report_dir, meta):
     return repo_root() / root
 
 
+def collect_sources(root, only=None):
+    """枚举 <root>/<tier>/*.json 的 selector 配置: [(tier, path)]. 只发给 6.3.0 以前客户端的配置跳过."""
+    out = []
+    for tier_dir in sorted(pathlib.Path(root).iterdir()):
+        if not tier_dir.is_dir():
+            continue
+        for f in sorted(tier_dir.glob("*.json")):
+            if json.loads(f.read_text(encoding="utf-8")).get("clientVersions") == "<6.3.0":
+                continue
+            if not only or f.stem in only:
+                out.append((tier_dir.name, f))
+    return out
+
+
+# ---- 条目选择 (entries/picks.json): 评测只解析 agent 选定的正确条目, 不吃引擎模糊匹配的顺序 ----
+
+PICKS_REL = pathlib.Path("entries") / "picks.json"
+CANDIDATES_REL = pathlib.Path("entries") / "candidates.json"
+
+_CN_DIGITS = {"一": "1", "二": "2", "三": "3", "四": "4", "五": "5", "六": "6", "七": "7", "八": "8", "九": "9", "十": "10"}
+_TITLE_NOISE = re.compile(r"[\s　!！?？:：·・,，。、\-—–_~～《》「」『』\[\]【】()（）\u3000]+")
+
+
+def normalize_title(name):
+    """比较用的标题归一化: 去空白/标点, 小写, 「第二季/期」→「第2季」. 只用于自动选条目的精确相等判断,
+    故意不做任何模糊匹配 (那正是要绕开的东西)."""
+    s = str(name or "")
+    s = re.sub(r"第([一二三四五六七八九十])([季期部])", lambda m: f"第{_CN_DIGITS[m.group(1)]}{m.group(2)}", s)
+    s = re.sub(r"([Ss]eason|第)\s*(\d+)\s*([季期部])?", lambda m: f"第{m.group(2)}季", s)
+    s = _TITLE_NOISE.sub("", s)
+    return s.lower()
+
+
+def load_picks(report_dir):
+    f = pathlib.Path(report_dir) / PICKS_REL
+    return json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
+
+
+def pick_for(picks, source, subject_id):
+    """返回该 (源, 番) 的选条目记录 (dict, 含 status) 或 None (尚未跑 pick_entries)."""
+    return ((picks or {}).get("sources") or {}).get(source, {}).get(str(subject_id))
+
+
+def require_picks(report_dir, sources, subject_ids):
+    """run_eval / deep_sample 开跑前校验: 每个 源×番 都必须有已审核的选条目结论."""
+    picks = load_picks(report_dir)
+    if picks is None:
+        sys.exit("缺少 entries/picks.json: 先运行 pick_entries.py <report_dir> 列出各源的搜索结果并选定正确条目.")
+    pending = []
+    for src in sources:
+        for sid in subject_ids:
+            rec = pick_for(picks, src, sid)
+            if not pick_ready(rec):
+                pending.append(f"{src} × {sid}")
+    if pending:
+        sys.exit("以下 源×番 的条目尚未选定 (status=needs_review 或缺失), 请先用 pick_entries.py --set/--unlisted 处理:\n  "
+                 + "\n  ".join(pending[:40]) + (f"\n  ... 共 {len(pending)} 项" if len(pending) > 40 else ""))
+    return picks
+
+
+def pick_ready(rec):
+    if not rec:
+        return False
+    if rec.get("status") in ("unlisted", "search_failed"):
+        return True
+    return rec.get("status") in ("auto", "agent") and bool(rec.get("urls") or rec.get("url"))
+
+
 def playback_ok(probe):
     """真实实播成功: 只认播放器 playback.ran && ok.
 
@@ -89,6 +157,19 @@ def playback_ok(probe):
     """
     pb = (((probe or {}).get("mediaAnalysis") or {}).get("playback")) or {}
     return bool(pb.get("ran") and pb.get("ok"))
+
+
+def startup_millis(playback):
+    """起播耗时 (ms): setMediaData 开始 → 播放位置首次前进, 即 openMillis + timeToPlayingMillis.
+
+    mpv 在打开阶段就拉清单 / 分片并解出首帧 (暂停等着), resume 后位置几乎立刻前进, 所以
+    timeToPlayingMillis 恒为几毫秒, 单看它不是起播; 用户体感的等待在 openMillis 里. 没播成返回 None."""
+    pb = playback or {}
+    if not pb.get("ran") or not pb.get("ok"):
+        return None
+    if pb.get("openMillis") is None or pb.get("timeToPlayingMillis") is None:
+        return None
+    return int(pb["openMillis"] + pb["timeToPlayingMillis"])
 
 
 def require_player_available(probe):

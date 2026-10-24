@@ -23,7 +23,7 @@ description: 评测 ani-subs 的 CSS selector 数据源并生成图文报告。�
 cd <animeko>/ani && ./gradlew :tools:datasource-test-mcp:installDist
 ```
 构建产物在 `ani/tools/datasource-test-mcp/build/install/.../bin/datasource-test-mcp`。
-`probe_video` 用 Animeko 自家桌面播放器内核 (mediamp-**mpv**) 真实播放，无需手装任何播放器。**mpv 原生库来源**: mediamp 的 runtime 工件尚未发布，默认 classpath 加载会失败——脚本的 `lib.Mcp` 启动 server 时会自动注入 JVM flag `-Dani.mpv.native.dir`（经 `DATASOURCE_TEST_MCP_OPTS` 环境变量，追加不覆盖），目录取环境变量 `ANI_MPV_NATIVE_DIR` 或按平台自动探测 mediamp worktree dev 构建（`~/Projects/mediamp/mediamp-mpv/build/mpv-output/<平台>/lib`，如 `MacosArm64`）；原生库加载失败时 probe_video 退化为纯 HTTP 探测（拿不到分辨率/码率/起播）。起播指标取 `mediaAnalysis.playback.timeToPlayingMillis`（**resume→播放位置首次前进**，即起播含缓冲；mpv 的 PLAYING 状态在 resume 后同步翻转、不含缓冲，故不用状态而用位置前进作判据），另有 openMillis / timeToFirstFrameMillis / playWallClockMillis / bufferingCount / bufferingTotalMillis。**可播口径**: 只认 `playback.ran && playback.ok`（脚本 `lib.playback_ok`）——`probe_video` 顶层 `ok` 在播放器不可用时会退回 HTTP 探测结论，HTTP 可达 ≠ 可播；脚本检测到 `mediaAnalysis.available == false`（mpv 没加载）会**直接中止评测**，防止产出虚假报告。
+`probe_video` 用 Animeko 自家桌面播放器内核 (mediamp-**mpv**) 真实播放，无需手装任何播放器。**mpv 原生库来源**: mediamp 的 runtime 工件尚未发布，默认 classpath 加载会失败——脚本的 `lib.Mcp` 启动 server 时会自动注入 JVM flag `-Dani.mpv.native.dir`（经 `DATASOURCE_TEST_MCP_OPTS` 环境变量，追加不覆盖），目录取环境变量 `ANI_MPV_NATIVE_DIR` 或按平台自动探测 mediamp worktree dev 构建（`~/Projects/mediamp/mediamp-mpv/build/mpv-output/<平台>/lib`，如 `MacosArm64`）；原生库加载失败时 probe_video 退化为纯 HTTP 探测（拿不到分辨率/码率/起播）。起播指标取 `mediaAnalysis.playback.openMillis + timeToPlayingMillis`（**打开媒体→播放位置首次前进**，`lib.startup_millis`）：mpv 在 `setMediaData` 阶段就拉清单/分片并解出首帧暂停等着，用户等的网络时间都在 `openMillis` 里；`timeToPlayingMillis`（resume→位置前进）恒为几毫秒，PLAYING 状态在 resume 后同步翻转，两者单独看都不是起播。另有 timeToFirstFrameMillis / playWallClockMillis / bufferingCount / bufferingTotalMillis。**可播口径**: 只认 `playback.ran && playback.ok`（脚本 `lib.playback_ok`）——`probe_video` 顶层 `ok` 在播放器不可用时会退回 HTTP 探测结论，HTTP 可达 ≠ 可播；脚本检测到 `mediaAnalysis.available == false`（mpv 没加载）会**直接中止评测**，防止产出虚假报告。
 
 另需系统装 **ffmpeg/ffprobe**（macOS: `brew install ffmpeg`）——分辨率/码率/编码等基础媒体指标靠它实测，见下"媒体基础指标 (ffprobe)"。
 
@@ -34,6 +34,7 @@ cd <animeko>/ani && ./gradlew :tools:datasource-test-mcp:installDist
 ## 流程
 
 所有脚本在 `.agents/skills/datasource-eval/scripts/` 下，第一个参数都是报告目录。
+顺序: 选番剧 → **选条目 (pick_entries)** → 快测 (run_eval) → 深采 (deep_sample) → 看图判广告 → 生成报告 → 同步 tier。
 
 ### 1. 选番剧 + 建报告目录
 
@@ -58,6 +59,39 @@ cat > "$R/meta.json" <<'JSON'
 JSON
 ```
 `evalDate` 用 `YYYY-MM-DD`，会写进报告头。名字里别带 `/`（会当路径分隔）。
+**同时写 `egress`**（评测机的网络出口，如 `"egress": "JP (Tokyo, NTT)"`，`curl https://ipinfo.io/json` 可查）：盗版 CDN 常按客户端
+IP 地区放行或直接 404，可播性结论只对该出口成立；报告头会打印它，解读 ❌ 时要把「可能是地区限制」列为原因之一，
+不能单凭一个出口的 404 断定线路失效。
+
+### 1b. 选条目: agent 决定每个源 × 每部番用哪个站内条目 (关键)
+
+引擎的自动匹配 (`ContainsSubjectName`) 是「站内条目名包含请求名 **或** Levenshtein 相似度 ≥ 80」的**召回式筛选**，
+目的是不漏掉「鬼灭之刃国语」「间谍过家家 第一季」这类名字稍有出入的正确条目；代价是「咒术回战0」「葬送的芙莉莲 第二季」
+「进击的巨人编年史」也会进来。真实客户端还有条目系列信息做续季排除，测试 MCP 没有这层，而且 `maxSubjectsPerName`
+只展开前几个条目，正确条目可能排在后面被截掉。所以评测**不吃引擎的条目顺序**，由 agent 选定条目：
+
+```bash
+python3 .agents/skills/datasource-eval/scripts/pick_entries.py "$R"          # 列出搜索结果 + 自动选定能精确对上名字的
+python3 .agents/skills/datasource-eval/scripts/pick_entries.py "$R" --status # 看待审核项 (附候选列表与 Ani 名称)
+```
+
+发现模式对每个源 × 每部番调用 `selector_resolve_episode(listSubjectsOnly=true)`，只跑搜索与 selectSubjects，不访问详情页，
+结果存 `entries/raw/`、`entries/candidates.json`，结论存 `entries/picks.json`。条目名归一化后 (去标点空白、「第二季」→「第2季」)
+与任一 Ani 名称**精确相等**的自动选定 (`auto`，多个精确相等的全选)；搜索阶段就失败的记 `search_failed` (run_eval 照常跑，记录失败原因)；
+其余 `needs_review`，**agent 读候选列表自己判断**，逐条写结论：
+
+```bash
+# 选定正确条目 (多个正确条目用逗号, 如「间谍过家家」与「间谍过家家 第一季」都是第一季)
+python3 .agents/skills/datasource-eval/scripts/pick_entries.py "$R" --set 樱花动漫 55770 /v/18772.html --note "站内 S1 叫「进击的巨人 第一季」"
+# 该站没有这部番 (如在播的第三季站内只有前两季): 不解析, 不计入成功率, 报告记 ⊘
+python3 .agents/skills/datasource-eval/scripts/pick_entries.py "$R" --unlisted 樱花动漫 568244 --note "站内只有 S1/S2"
+python3 .agents/skills/datasource-eval/scripts/pick_entries.py "$R" --check   # 还有待审核则退出码 1
+```
+
+判断原则: 只认**同一季的 TV 正片**条目 (配音版 / 粤语版可算，续季、剧场版、总集篇、OVA、特典不算)；拿不准时打开条目 URL
+看集数与年份；Ani 条目没有对应季 (站内只有别的季) 就 `--unlisted`，不要勉强选最接近的。`run_eval.py`/`deep_sample.py` 读 picks.json，
+把选定条目的 URL 通过 `subjectUrls` 传给 MCP，只展开这些条目；有待审核项时 run_eval 拒绝开跑。
+picks.json 是评测结论的一部分，报告源页「跨番解析」会列出每部番实际用的条目。
 
 ### 2. 批量解析 + 实播 (慢, 后台跑)
 
@@ -72,7 +106,8 @@ HTTP 可达性 probe。随后每条 resolved URL 统一调用 `probe_video`，�
 ```bash
 python3 .agents/skills/datasource-eval/scripts/run_eval.py "$R"
 ```
-产物: `$R/subjects/<id>-<名>/{sources/*.json 逐源 trace, summary.json 汇总, driver.log}`。
+产物: `$R/subjects/<id>-<名>/{sources/*.json 逐源 trace, summary.json 汇总, driver.log}`。summary 每行带 `entry`
+(评测用的站内条目) ；选条目结论为未收录的 源×番 不发请求，summary 行 `unlisted: true`。
 耗时随线路数线性增长（每条线路实播 ~4s + ffprobe 采样 + 解析开销），每部番可达十几分钟。建议 `run_in_background` 并用日志盯进度。
 
 Ani API 的搜索接口冷启动慢且会限流；MCP 工具内部已重试，脚本对超时也会重启 server。
@@ -230,13 +265,13 @@ python3 .agents/skills/datasource-eval/scripts/sync_channel_tiers.py "$R" \
 
 **`sources/<tier>-<源>.md`（源页）**: 顶部推荐线路一句话 + `## 线路拆解`（每线路 × 每部番，同 README 第 5 节）+ `## 跨番解析`。
 
-**`channels/<tier>-<源>-<线路>.md`（线路页）**: 结论行 + `## 广告判定`（视觉判读结论 + HLS 结构探测辅助行: 检出几组插入片段、时间范围、客户端过滤器可否自动滤除）+ `## 播放采样`（0/3/8/15/25s 及加采点截图画廊，图文并茂）+ `## 媒体信息`（分辨率/编码/帧率/音频/时长/码率/**码率来源**: ffprobe 实测均值 / ffprobe format / 播放器统计）+ `## 播放性能`（打开/起播/首帧/卡顿）+ `## 跨番实播`（每番 结果 + 失败原因）。
+**`channels/<tier>-<源>-<线路>.md`（线路页）**: 结论行 + `## 广告判定`（视觉判读结论 + HLS 结构探测辅助行: 检出几组插入片段、时间范围、客户端过滤器可否自动滤除）+ `## 播放采样`（0/3/8/15/25s 及加采点截图画廊，图文并茂）+ `## 媒体信息`（分辨率/编码/帧率/音频/时长/码率/**码率来源**: ffprobe 实测均值 / ffprobe format / 播放器统计）+ `## 码率分布`（快测 10s / 深采 30s / 合并 三行 P10–P90 与 min/max，加每部番两次实测值；总表的码率 = 合并行 P50，总表另有 P10–P90 列）+ `## 播放性能`（打开媒体/起播/resume→首帧/卡顿）+ `## 跨番实播`（每番 结果 + 失败原因）。
 
 **符号约定（全报告统一）**:
 - 广告：`无`/`轻`/`中`/`重`；源级 `*` = 该源另有更脏线路。
-- 数值口径：分辨率 = 该线路跨番实测众数；码率/起播 = 跨番实测中位数（含 deep 长播数据）。码率/分辨率优先 **ffprobe 实测**（实测均值 > format.bit_rate > 播放器统计，`bitrateSource` 标注来源）；起播为 **mpv 实播**的 `timeToPlayingMillis`。
+- 数值口径：分辨率 = 该线路跨番实测众数；码率/起播 = 跨番实测中位数（含 deep 长播数据）。码率/分辨率优先 **ffprobe 实测**（实测均值 > format.bit_rate > 播放器统计，`bitrateSource` 标注来源）；起播为 **mpv 实播**从打开媒体到画面首次前进的耗时（`openMillis + timeToPlayingMillis`）。
 - 列级 `-` = 该线路无此项数据（从未成功播放，故无分辨率/码率/起播/广告）。
-- 番格 `✅` = 可播（真实实播 `playback.ran && ok`，快测或 deep/backfill 任一成功）；`❌` = 解析到但播放失败；`—` = 该番没解析到这条线路（线路名轮换），源级表里也可能是断点续跑时该番未测。
+- 番格 `✅` = 可播（真实实播 `playback.ran && ok`，快测或 deep/backfill 任一成功）；`❌` = 解析到但播放失败；`⊘` = 该站未收录这部番（pick_entries 判定，不计入成功率）；`—` = 该番没解析到这条线路（线路名轮换），源级表里也可能是断点续跑时该番未测。源页「跨番解析」列出每部番实际评测的站内条目。
 - 失败原因归纳成人话（"WebView 未匹配到视频 URL""视频 URL 返回 403(防盗链)""站点需人机验证"…），不暴露裸异常类名。
 
 **广告判定来源**: 等级只用 `frames_verdicts.json` 的视觉判读（subagent 看图），线路级优先于源级；未判读的线路显示"未判定"而非拿 OCR 启发式充数。线路页另附 **HLS 结构探测**行（deep 的 `adDetect` / summary 的 `adFilter`）作辅助证据——它不决定等级本身，但它的 `filterable` 是"插入片段滤不滤得掉"的权威依据（进入第 4 步的重度判定口径）。
@@ -254,6 +289,8 @@ python3 .agents/skills/datasource-eval/scripts/sync_channel_tiers.py "$R" \
 ## 排障
 
 - **找不到 MCP**: 见上"依赖"节，构建或问用户 animeko/ani 位置。
+- **pick_entries 全部 needs_review 且候选为空 / run_eval 报 `subjectUrls` 未命中**: MCP 太旧，不认识 `listSubjectsOnly` / `subjectUrls` 参数（2026-10 加入），重新 `installDist`。
+- **run_eval 拒绝开跑 "条目尚未选定"**: 先跑 `pick_entries.py --status`，把 needs_review 项用 `--set`/`--unlisted` 处理完。
 - **MCP 起不来 / 端口异常**: server 起动后不响应 stdin，只走 HTTP `POST /mcp`；若端口被占或有残留实例，`pkill -f datasource-test-mcp` 清掉再跑（脚本本身用随机空闲端口，通常不冲突；JVM 冷启动可达 1–2 分钟属正常）。
 - **全部源搜索失败**: 可能 Ani API 限流/元数据源问题，或番剧 subjectId/episodeId 填错——先用 MCP `get_subject_episodes` 核对。
 - **评测跑一半报"mpv 原生库未加载, 中止评测"（或 mediaAnalysis.available 为 false）**: mpv 原生库没加载上，run_eval/deep_sample 会**主动中止**（继续跑只会把 HTTP 可达当可播）——`lib.Mcp` 会自动探测 mediamp worktree（`~/Projects/mediamp/mediamp-mpv/build/mpv-output/<平台>/lib`）并经 `DATASOURCE_TEST_MCP_OPTS` 注入 `-Dani.mpv.native.dir`；探测不到时设 `ANI_MPV_NATIVE_DIR` 指向含 libmpv/libmediampv/ffmpeg dylib 的目录。个别线路播不出来也可能是视频 URL 已过期（重跑 deep_sample 会重新解析）。分辨率/码率本就以 ffprobe 为准（见"媒体基础指标"）。

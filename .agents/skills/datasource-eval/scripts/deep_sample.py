@@ -22,8 +22,8 @@ import time
 from datetime import datetime, timezone
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lib import (Mcp, ffprobe_all, is_explicit_direct_media, load_meta, playback_ok,
-                 require_mcp_bin, require_player_available, resolve_sources_root, safe_dir)
+from lib import (Mcp, ffprobe_all, is_explicit_direct_media, load_meta, load_picks, pick_for, playback_ok,
+                 require_mcp_bin, require_picks, require_player_available, resolve_sources_root, safe_dir, startup_millis)
 
 MAX_CANDIDATES = 100          # 实际上不设限: 每条线路都要深采
 SAMPLE_SECONDS = [0, 3, 8, 15, 25]
@@ -43,7 +43,7 @@ def usable_sources(report_dir, subject_ids):
             continue
         sid = d.name.split("-", 1)[0]
         for r in json.loads(sj.read_text(encoding="utf-8")):
-            if r.get("resolveOk"):
+            if r.get("resolveOk") and not r.get("unlisted"):
                 per.setdefault(r["source"], {"tier": r["tier"], "sids": set()})["sids"].add(sid)
     out = []
     for name, v in per.items():
@@ -200,6 +200,7 @@ def main():
     ep_of = {str(s["subjectId"]): (s["episodeId"], s["name"]) for s in meta["subjects"]}
     subject_ids = [str(s["subjectId"]) for s in meta["subjects"]]
     sources_root = resolve_sources_root(report_dir, meta)
+    picks = load_picks(report_dir)  # 与 run_eval 同一份选条目结论; 旧报告没有则退回自动匹配
 
     deep_dir = report_dir / "deep"
     deep_dir.mkdir(parents=True, exist_ok=True)
@@ -217,6 +218,9 @@ def main():
         server.stop()
         return
     sources = usable_sources(report_dir, subject_ids)
+    if picks is not None:
+        for name, _, sids in sources:
+            require_picks(report_dir, [name], sids)
     log(f"=== 深采 {len(sources)} 个可用源")
 
     for name, tier, sids in sources:
@@ -232,12 +236,17 @@ def main():
         log(f"[{tier}] {name}: {[ep_of[s][1] for s in sids]}")
         for sid in sids:  # 该源解析成功过的每部番都深采
             ep, sub_name = ep_of[sid]
-            resolve = server.call("selector_resolve_episode", {
+            resolve_args = {
                 "subjectId": int(sid), "episodeId": int(ep), "config": config,
                 "extractVideo": True, "probeVideo": False, "extractMode": "all_channels",
                 "maxCandidatesToExtract": MAX_CANDIDATES, "maxSubjectsPerName": 2,
                 "probeTimeoutMillis": 12000,
-            }, 20 * 60)
+            }
+            pick = pick_for(picks, name, sid)
+            urls = (pick or {}).get("urls") or ([pick["url"]] if pick and pick.get("url") else [])
+            if urls:
+                resolve_args["subjectUrls"] = urls  # 只深采 agent 选定的条目, 与快测一致
+            resolve = server.call("selector_resolve_episode", resolve_args, 20 * 60)
             media_by_id = {m["mediaId"]: m for m in resolve.get("medias", [])}
             resolved = [r for r in resolve.get("extractResults", []) if r.get("resolvedVideo")]
             log(f"  {sub_name}: {len(resolved)} 线路")
@@ -267,7 +276,7 @@ def main():
                 require_player_available(probe)  # mpv 没加载直接中止, 防止产出无帧假深采
                 pb = (probe.get("mediaAnalysis") or {}).get("playback") or {}
                 log(f"    {ch}: ok={probe.get('ok')} 帧={len(probe.get('capturedFrames') or [])} "
-                    f"起播={pb.get('timeToPlayingMillis')}ms")
+                    f"起播={startup_millis(pb)}ms (打开 {pb.get('openMillis')}ms)")
                 run["channels"].append({"channel": media.get("channel"),
                                         "mediaId": r["candidate"]["mediaId"],
                                         "videoUrl": rv["url"],
