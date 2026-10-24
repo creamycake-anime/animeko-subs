@@ -1,0 +1,67 @@
+{
+  "id": "anime7",
+  "clientVersions": ">=6.3.0",
+  "factoryId": "web-selector",
+  "version": 2,
+  "arguments": {
+    "name": "Anime7",
+    "description": "",
+    "iconUrl": "https://ani7.b-cdn.net/upload/logo/icon.png",
+    "searchConfig": {
+      "searchUrl": "https://anime7.top/index.php/ajax/suggest?mid=1&wd={keyword}",
+      "searchUseOnlyFirstWord": true,
+      "searchRemoveSpecial": true,
+      "rawBaseUrl": "",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+      "subjectFormatId": "json-path-indexed",
+      "selectorSubjectFormatA": {
+        "selectLists": "",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatIndexed": {
+        "selectNames": "",
+        "selectLinks": "",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatJsonPathIndexed": {
+        "selectLinks": "$.list[*]['id']",
+        "selectNames": "$.list[*]['name']",
+        "linkTemplate": "/vod-detail/{value}/",
+        "preferShorterName": true
+      },
+      "channelFormatId": "index-grouped",
+      "selectorChannelFormatFlattened": {
+        "selectChannelNames": ".hl-plays-from .hl-tabs-btn",
+        "matchChannelName": "",
+        "selectEpisodeLists": "#playlist .hl-tabs-box",
+        "selectEpisodesFromList": "li > a",
+        "selectEpisodeLinksFromList": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话話集]"
+      },
+      "selectorChannelFormatNoChannel": {
+        "selectEpisodes": "#playlist .hl-plays-list li > a",
+        "selectEpisodeLinks": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话話集]"
+      },
+      "filterByEpisodeSort": true,
+      "selectMedia": {
+        "distinguishSubjectName": true,
+        "distinguishChannelName": true
+      },
+      "matchVideo": {
+        "enableNestedUrl": true,
+        "matchNestedUrl": "^https?://vip\\.dyttzyplay\\.com/\\?url=|^https?://[^/]+/static/player/artplayer\\.html\\?url=|^https?://[^/]+/static/player/A7-artplayer/\\?url=",
+        "matchVideoUrl": "(?<v>^https?://[^\\s?#]+\\.(?:m3u8|mp4|flv|mkv)(?:\\?[^\\s]*)?$)",
+        "addHeadersToVideo": {
+          "referer": ""
+        }
+      },
+      "defaultResolution": "1080P",
+      "defaultSubtitleLanguage": "CHS"
+    },
+    "tier": 3,
+    "channelTiers": {
+      "線路1": 0
+    }
+  }
+}
