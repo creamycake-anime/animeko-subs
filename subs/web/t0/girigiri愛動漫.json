@@ -6,52 +6,32 @@
   "arguments": {
     "name": "girigiri愛動漫",
     "description": "",
-    "iconUrl": "https://girigirilove.com/app/app_files/anime.girigirilove.com_.png",
+    "iconUrl": "https://ani.girigirilove.com/brand/icon.png",
     "searchConfig": {
-      "searchUrl": "https://ani.girigirilove.com/index.php/ajax/suggest?mid=1&wd={keyword}",
-      "searchUseOnlyFirstWord": true,
-      "searchRemoveSpecial": true,
-      "searchUseSubjectNamesCount": 1,
-      "rawBaseUrl": "",
+      "searchUrl": "https://m3u8.girigirilove.com/api.php/Vod/get_list?offset=0&limit=24&vod_name={keyword}",
+      "rawBaseUrl": "https://bg.girigirilove.com",
       "requestInterval": 3000,
       "subjectFormatId": "json-path-indexed",
       "selectorSubjectFormatJsonPathIndexed": {
-        "selectLinks": "$.list[*]['id']",
-        "selectNames": "$.list[*]['name']",
-        "linkTemplate": "/GV{value}/",
-        "preferShorterName": true
+        "selectLinks": "$.info.rows[*].vod_id",
+        "selectNames": "$.info.rows[*].vod_name",
+        "linkTemplate": "/GV{value}/"
       },
       "channelFormatId": "index-grouped",
       "selectorChannelFormatFlattened": {
-        "selectChannelNames": ".anthology-tab > .swiper-wrapper a",
-        "matchChannelName": "(?<ch>.+?)(\\d+?)",
-        "selectEpisodeLists": ".anthology-list-box",
-        "selectEpisodesFromList": "a",
-        "selectEpisodeLinksFromList": "",
-        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
-      },
-      "selectorChannelFormatNoChannel": {
-        "selectEpisodes": ".anthology-list-play a",
-        "selectEpisodeLinks": "",
-        "matchEpisodeSortFromName": "(第\\s*(?<ep>.+)\\s*[话集])|1080P"
-      },
-      "defaultResolution": "1080P",
-      "defaultSubtitleLanguage": "CHS",
-      "onlySupportsPlayers": [],
-      "filterByEpisodeSort": true,
-      "filterBySubjectName": true,
-      "selectMedia": {
-        "distinguishSubjectName": true,
-        "distinguishChannelName": true
+        "selectChannelNames": ".anthology-tab > .swiper-wrapper > a",
+        "matchChannelName": "^(?<ch>.+?)(?:\\s*\\d+)?$",
+        "selectEpisodeLists": ".anthology-list > .anthology-list-box",
+        "selectEpisodesFromList": ".anthology-list-play a[href]",
+        "matchEpisodeSortFromName": "^(?:第\\s*)?(?<ep>\\d+(?:\\.\\d+)?)(?:\\s*[话集])?$"
       },
       "matchVideo": {
-        "enableNestedUrl": true,
-        "matchNestedUrl": "^.+(vip|index\\.php).+\\?",
-        "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http(s)?:\\/\\/).+((m3u8)).*(\\?.+)?)|(akamaized)|(bilivideo.com)|(url=(?<v>.+(playlist\\.m3u8|\\.mp4|\\.mkv)))",
-        "cookies": "quality=1080P",
+        "enableNestedUrl": false,
+        "matchNestedUrl": "",
+        "matchVideoUrl": "(?i)(?:^|[?&]url=)(?<v>https?://[^?#\\s\"'<>]+?\\.(?:m3u8|mpd|mp4|m4v|mkv|webm|mov|flv|avi)(?:\\?[^#\\s\"'<>]*)?(?:#[^\\s\"'<>]*)?)(?=&|$)",
+        "cookies": "",
         "addHeadersToVideo": {
-          "referer": "",
-          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+          "referer": "https://ani.girigirilove.com/"
         }
       }
     },
