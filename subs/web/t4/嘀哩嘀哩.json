@@ -42,7 +42,10 @@
     },
     "tier": 4,
     "channelTiers": {
-      "在线": 6
+      "在线": 5
     }
-  }
+  },
+  "tags": [
+    "hls-ads"
+  ]
 }

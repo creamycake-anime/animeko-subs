@@ -6,9 +6,9 @@
   "arguments": {
     "name": "2k动漫",
     "description": "",
-    "iconUrl": "https://www.2kdm.com/favicon.ico",
+    "iconUrl": "https://www.mutefun.tv/upload/mxprocms/20220822-1/e68e718ceae9622e4646ca725d182831.png",
     "searchConfig": {
-      "searchUrl": "https://www.2kdm.com/index.php/ajax/suggest?mid=1&wd={keyword}",
+      "searchUrl": "https://www.mutefun.tv/index.php/ajax/suggest?mid=1&wd={keyword}",
       "searchUseOnlyFirstWord": true,
       "searchRemoveSpecial": true,
       "rawBaseUrl": "",

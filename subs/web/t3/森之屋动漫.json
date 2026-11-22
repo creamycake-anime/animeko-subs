@@ -44,5 +44,8 @@
     "channelTiers": {
       "HD": 5
     }
-  }
+  },
+  "tags": [
+    "hls-ads"
+  ]
 }

@@ -7,7 +7,7 @@
     "description": "",
     "iconUrl": "https://cdn.l-il.cn/ajax/lucky/mxpro/images/favicon.png",
     "searchConfig": {
-      "searchUrl": "https://www.yinhuadm.cc/vch/{keyword}.html",
+      "searchUrl": "https://www.yinhuadm.xyz/vch/{keyword}.html",
       "searchUseOnlyFirstWord": true,
       "searchRemoveSpecial": true,
       "rawBaseUrl": "",
@@ -62,7 +62,12 @@
     },
     "tier": 4,
     "channelTiers": {
-      "Diff": 3
+      "Diff": 1,
+      "Bfeng": 6,
+      "Laoz": 6
     }
-  }
+  },
+  "tags": [
+    "hls-ads"
+  ]
 }
