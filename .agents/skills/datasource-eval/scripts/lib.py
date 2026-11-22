@@ -124,14 +124,29 @@ def pick_for(picks, source, subject_id):
     return ((picks or {}).get("sources") or {}).get(source, {}).get(str(subject_id))
 
 
-def require_picks(report_dir, sources, subject_ids):
-    """run_eval / deep_sample 开跑前校验: 每个 源×番 都必须有已审核的选条目结论."""
+def subject_applies(subject, source):
+    """这部番是否要对该源评测. meta.json 里带 onlySources 的是补测番剧 (为 T0 候选线路补稳定性样本),
+    只对列出的源评测; 不带的是基础番剧, 对所有源都评测."""
+    only = subject.get("onlySources")
+    return not only or source in only
+
+
+def supplementary_ids(meta):
+    """补测番剧的 subjectId 集合 (字符串)."""
+    return {str(s["subjectId"]) for s in meta.get("subjects", []) if s.get("onlySources")}
+
+
+def require_picks(report_dir, sources, subject_ids, applies=None):
+    """run_eval / deep_sample 开跑前校验: 每个 源×番 都必须有已审核的选条目结论.
+    applies(源, 番 id) 返回 False 的组合不评测 (补测番剧只对部分源评测), 不校验."""
     picks = load_picks(report_dir)
     if picks is None:
         sys.exit("缺少 entries/picks.json: 先运行 pick_entries.py <report_dir> 列出各源的搜索结果并选定正确条目.")
     pending = []
     for src in sources:
         for sid in subject_ids:
+            if applies and not applies(src, sid):
+                continue
             rec = pick_for(picks, src, sid)
             if not pick_ready(rec):
                 pending.append(f"{src} × {sid}")

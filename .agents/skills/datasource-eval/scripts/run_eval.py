@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from lib import (Mcp, collect_sources, ffprobe_all, load_meta, pick_bitrate_resolution, pick_for,
-                 playback_ok, repo_root, require_mcp_bin, require_picks, require_player_available,
+                 playback_ok, repo_root, require_mcp_bin, require_picks, require_player_available, subject_applies,
                  resolve_sources_root, safe_dir, startup_millis)
 
 MAX_CANDIDATES = 100  # 实际上不设限: 每条线路都要解析并实播
@@ -43,7 +43,9 @@ def main():
     subjects = meta["subjects"]
     sources_root = resolve_sources_root(report_dir, meta)
     all_sources = collect_sources(sources_root, only)
-    picks = require_picks(report_dir, [f.stem for _, f in all_sources], [s["subjectId"] for s in subjects])
+    by_id = {s["subjectId"]: s for s in subjects}
+    picks = require_picks(report_dir, [f.stem for _, f in all_sources], list(by_id),
+                          applies=lambda src, sid: subject_applies(by_id[sid], src))
 
     for sub in subjects:
         sid, ep, name = sub["subjectId"], sub["episodeId"], sub["name"]
@@ -62,7 +64,8 @@ def main():
         summary = json.loads(summary_path.read_text(encoding="utf-8")) if summary_path.exists() else []
         done = {r["source"] for r in summary}
 
-        sources = collect_sources(sources_root, only)
+        # 补测番剧 (onlySources) 只对列出的源评测
+        sources = [(t, f) for t, f in collect_sources(sources_root, only) if subject_applies(sub, f.stem)]
         log(f"=== [{name}] {len(sources)} 源, 已完成 {len(done)}")
         for tier, f in sources:
             src = f.stem

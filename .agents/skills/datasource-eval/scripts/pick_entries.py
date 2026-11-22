@@ -27,7 +27,7 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from lib import (CANDIDATES_REL, PICKS_REL, Mcp, collect_sources, load_meta, normalize_title, pick_ready,
-                 require_mcp_bin, resolve_sources_root)
+                 require_mcp_bin, resolve_sources_root, subject_applies)
 
 
 def load_json(path, default):
@@ -78,6 +78,8 @@ def discover(report_dir, only, refresh):
         raw = load_json(raw_path, {"source": src, "tier": tier, "subjects": {}})
         for sub in meta["subjects"]:
             sid = str(sub["subjectId"])
+            if not subject_applies(sub, src):
+                continue  # 补测番剧只对 onlySources 列出的源评测
             if not refresh and sid in cands["sources"].get(src, {}):
                 continue
             print(f"[{tier}] {src} × {sub['name']} ...", flush=True)
@@ -121,7 +123,7 @@ def print_status(report_dir):
     sources = {f.stem for _, f in collect_sources(resolve_sources_root(report_dir, meta))}
     for src in sorted(sources | picks["sources"].keys()):
         print(f"\n== {src}")
-        for sid in [str(s["subjectId"]) for s in meta["subjects"]]:
+        for sid in [str(s["subjectId"]) for s in meta["subjects"] if subject_applies(s, src)]:
             rec = picks["sources"].get(src, {}).get(sid)
             if rec is None:
                 pending += 1
