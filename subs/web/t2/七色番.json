@@ -1,0 +1,51 @@
+{
+  "id": "qisefan",
+  "factoryId": "web-selector",
+  "version": 2,
+  "arguments": {
+    "name": "七色番",
+    "description": "",
+    "iconUrl": "https://www.7sefun.top/pc/img/favicon.ico",
+    "searchConfig": {
+      "searchUrl": "https://www.7sefun.top/vodsearch/-------------.html?wd={keyword}",
+      "searchUseOnlyFirstWord": true,
+      "searchRemoveSpecial": true,
+      "subjectFormatId": "indexed",
+      "selectorSubjectFormatIndexed": {
+        "selectNames": ".videos > .video .video-by",
+        "selectLinks": ".videos > .video a.video-wrapper",
+        "preferShorterName": true
+      },
+      "channelFormatId": "index-grouped",
+      "selectorChannelFormatFlattened": {
+        "selectChannelNames": ".chat-stream-bfqs > li",
+        "matchChannelName": "^(?<ch>.+?)$",
+        "selectEpisodeLists": ".vod-play-list-container",
+        "selectEpisodesFromList": "a",
+        "selectEpisodeLinksFromList": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "defaultResolution": "1080P",
+      "defaultSubtitleLanguage": "CHS",
+      "onlySupportsPlayers": [],
+      "selectMedia": {
+        "distinguishSubjectName": true,
+        "distinguishChannelName": true
+      },
+      "matchVideo": {
+        "enableNestedUrl": true,
+        "matchNestedUrl": "$^",
+        "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http).+\\.(mp4|m3u8|flv|mkv))|(url=(?<v>http(s)?:\\/\\/.+\\.(mp4|m3u8|flv|mkv)))|(^http(s)?:\\/\\/(?!.*http).+(sign\\.bytetos|sign\\.byteimg|mcloud\\.139|cloudflarestorage|tos-cn)\\.com(?!.*\\.ts).+(-expires|-signature))|((bilivideo|akamaized|szbdyd)\\.com(?!.*\\.ts))|(\\/video\\/tos\\/alisg\\/)|(\\/video\\/.*mime_type=video)",
+        "cookies": "quality=1080",
+        "addHeadersToVideo": {
+          "referer": ""
+        }
+      }
+    },
+    "tier": 2,
+    "channelTiers": {
+      "七色A线": 1,
+      "七色B线": 5
+    }
+  }
+}

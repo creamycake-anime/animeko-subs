@@ -1,0 +1,55 @@
+{
+  "id": "dongman-gongheguo",
+  "clientVersions": ">=6.3.0",
+  "factoryId": "web-selector",
+  "version": 2,
+  "arguments": {
+    "name": "动漫共和国",
+    "description": "",
+    "iconUrl": "https://www.dmghg1.com/upload/mxprocms/20260122-1/06b0c1b6ef7355e1e11f135bceabe7a4.png",
+    "searchConfig": {
+      "searchUrl": "https://www.dmghg1.com/index.php/vod/search.html?wd={keyword}",
+      "searchUseOnlyFirstWord": true,
+      "searchRemoveSpecial": true,
+      "subjectFormatId": "a",
+      "selectorSubjectFormatA": {
+        "selectLists": ".module-card-item-title > a",
+        "preferShorterName": true
+      },
+      "channelFormatId": "index-grouped",
+      "selectorChannelFormatFlattened": {
+        "selectChannelNames": "#y-playList .module-tab-item.tab-item span",
+        "matchChannelName": "^(?<ch>.+?)$",
+        "selectEpisodeLists": ".module-play-list-content",
+        "selectEpisodesFromList": "a",
+        "selectEpisodeLinksFromList": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "defaultResolution": "1080P",
+      "defaultSubtitleLanguage": "CHS",
+      "onlySupportsPlayers": [],
+      "selectMedia": {
+        "distinguishSubjectName": true,
+        "distinguishChannelName": true
+      },
+      "matchVideo": {
+        "enableNestedUrl": true,
+        "matchNestedUrl": "$^",
+        "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http).+\\.(mp4|m3u8|flv|mkv))|(url=(?<v>http(s)?:\\/\\/.+\\.(mp4|m3u8|flv|mkv)))|(^http(s)?:\\/\\/(?!.*http).+(sign\\.bytetos|sign\\.byteimg|mcloud\\.139|cloudflarestorage|tos-cn)\\.com(?!.*\\.ts).+(-expires|-signature))|((bilivideo|akamaized|szbdyd)\\.com(?!.*\\.ts))|(\\/video\\/tos\\/alisg\\/)|(\\/video\\/.*mime_type=video)",
+        "cookies": "quality=1080",
+        "addHeadersToVideo": {
+          "referer": ""
+        }
+      }
+    },
+    "tier": 3,
+    "channelTiers": {
+      "备用线": 1,
+      "切片4K": 6,
+      "副线": 6
+    }
+  },
+  "tags": [
+    "hls-ads"
+  ]
+}
